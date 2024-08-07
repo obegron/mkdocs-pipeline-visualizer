@@ -53,6 +53,11 @@ class PipelineVisualizer(BasePlugin):
             finally_task = final[0].get('name', 'Finally Task')
             for end_task in end_tasks:
                 markdown_content += f"\"{end_task}\" --> {finally_task}\n"
+            for i in range(len(final) - 1):
+                current_task = final[i].get('name', 'Finally Task')
+                next_task = final[i + 1].get('name', 'Finally Task')
+                markdown_content += f"\"{current_task}\" --> \"{next_task}\"\n"
+
 
         markdown_content += "@enduml\n```\n"
         return markdown_content

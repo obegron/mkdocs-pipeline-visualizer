@@ -1,3 +1,6 @@
+# 0.1.4
+* show all tasks in finally block
+
 # 0.1.3
 * enable configuration of graph direction `plantuml_graph_direction` either TB or LR
 * configuration for plantuml theme `plantuml_theme` string (https://plantuml.com/theme)

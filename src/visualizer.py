@@ -5,19 +5,6 @@ from mkdocs.structure.files import File, Files
 
 class PipelineVisualizer(BasePlugin):
 
-    def pipeline_parameters(self, pipeline_params):
-        markdown_content = "## Pipeline Parameters\n"
-        if pipeline_params:
-            markdown_content += "|Name|description|Default value|\n| --- | --- | --- |\n"
-            for param in pipeline_params:
-                name = param.get('name', 'Unnamed Parameter')
-                description = param.get('description', 'No description available.')
-                default = param.get('default', ' ')
-                markdown_content += f"|{name}|`{description}`|{default}|\n"
-        else:
-            markdown_content += "No pipeline parameters specified.\n\n"
-        return markdown_content
-
     def make_graph_from_tasks(self, tasks, final):
         markdown_content = "```@startuml\nleft to right direction\n!theme hacker\n"
         
@@ -63,10 +50,13 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += "|------|------|-------------|--------|\n"
         for param in params:
             name = param.get('name', 'Unnamed Parameter')
-            param_type = param.get('type', 'Not specified')
+            param_type = param.get('type', 'String')
             description = param.get('description', 'No description provided.')
-            default = param.get('default', 'Not specified')
-            markdown_content += f"| `{name}` | `{param_type}` | {description} | `{default}` |\n"
+            default = param.get('default', '')
+            if default == '':
+                markdown_content += f"| `{name}` | `{param_type}` | {description} |             |\n"
+            else:
+                markdown_content += f"| `{name}` | `{param_type}` | {description} | `{default}` |\n"
         return markdown_content + "\n"
 
     def visualize_workspaces(self, workspaces):
@@ -75,7 +65,7 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += "|------|-------------|----------|\n"
         for workspace in workspaces:
             name = workspace.get('name', 'Unnamed Workspace')
-            description = workspace.get('description', ' ').replace('\n', '<br>')
+            description = workspace.get('description', '').replace('\n', '<br>')
             optional = workspace.get("optional",False)
             markdown_content += f"| `{name}` | {description} | { optional } |\n"
         return markdown_content + "\n"
@@ -106,12 +96,12 @@ class PipelineVisualizer(BasePlugin):
                 markdown_content += "|------|-------|\n"
                 for param in params:
                     name = param.get('name', 'Unnamed Parameter')
-                    value = param.get('value', 'Not specified')
+                    value = param.get('value', '')
                     if isinstance(value, list):
                         value = "<ul>" + "".join(f"<li>{v}</li>" for v in value) + "</ul>"
                     elif isinstance(value, str) and '\n' in value:
                         value = value.replace('\n', '<br>')
-                    if '<br>' in str(value) or '<ul>' in str(value):
+                    if '<br>' in str(value) or '<ul>' in str(value) or value == '':
                         markdown_content += f"| `{name}` | {value} |\n"
                     else:
                         markdown_content += f"| `{name}` | `{value}` |\n"
@@ -129,6 +119,29 @@ class PipelineVisualizer(BasePlugin):
                     markdown_content += f"| `{name}` | `{workspace_name}` |\n"
                 markdown_content += "\n"
             
+            # Environment Variables
+            env = task.get('env', [])
+            if env:
+                markdown_content += "**Environment Variables:**\n\n"
+                markdown_content += "| Name | Value | Source |\n"
+                markdown_content += "|------|-------|--------|\n"
+                for var in env:
+                    name = var.get('name', 'Unnamed Variable')
+                    value = var.get('value', '')
+                    value_from = var.get('valueFrom', {})
+                    
+                    if value:
+                        markdown_content += f"| `{name}` | `{value}` | Direct Value |\n"
+                    elif 'fieldRef' in value_from:
+                        field_path = value_from['fieldRef'].get('fieldPath', 'Not specified')
+                        markdown_content += f"| `{name}` | `{field_path}` | Field Reference |\n"
+                    elif 'secretKeyRef' in value_from:
+                        secret_name = value_from['secretKeyRef'].get('name', 'Not specified')
+                        secret_key = value_from['secretKeyRef'].get('key', 'Not specified')
+                        markdown_content += f"| `{name}` | `{secret_name}:{secret_key}` | Secret Reference |\n"
+                    else:
+                        markdown_content += f"| `{name}` | Not specified | Unknown |\n"
+                markdown_content += "\n"            
             markdown_content += "---\n\n"
         
         return markdown_content
@@ -161,12 +174,24 @@ class PipelineVisualizer(BasePlugin):
             env = step.get('env', [])
             if env:
                 markdown_content += "**Environment Variables:**\n\n"
-                markdown_content += "| Name | Value |\n"
-                markdown_content += "|------|-------|\n"
+                markdown_content += "| Name | Value | Source |\n"
+                markdown_content += "|------|-------|--------|\n"
                 for var in env:
                     name = var.get('name', 'Unnamed Variable')
-                    value = var.get('value', 'Not specified')
-                    markdown_content += f"| `{name}` | `{value}` |\n"
+                    value = var.get('value', '')
+                    value_from = var.get('valueFrom', {})
+                    
+                    if value:
+                        markdown_content += f"| `{name}` | `{value}` |  |\n"
+                    elif 'fieldRef' in value_from:
+                        field_path = value_from['fieldRef'].get('fieldPath', 'Not specified')
+                        markdown_content += f"| `{name}` | `{field_path}` | Field Reference |\n"
+                    elif 'secretKeyRef' in value_from:
+                        secret_name = value_from['secretKeyRef'].get('name', 'Not specified')
+                        secret_key = value_from['secretKeyRef'].get('key', 'Not specified')
+                        markdown_content += f"| `{name}` | `{secret_name}:{secret_key}` | Secret Reference |\n"
+                    else:
+                        markdown_content += f"| `{name}` | Not specified | Unknown |\n"
                 markdown_content += "\n"
             
             markdown_content += "---\n\n"
@@ -174,6 +199,8 @@ class PipelineVisualizer(BasePlugin):
         return markdown_content
 
     def visualize_results(self, results):
+        if not results:
+            return "\n"
         markdown_content = "## Results\n\n"
         markdown_content += "| Name | Description |\n"
         markdown_content += "|------|-------------|\n"
@@ -217,10 +244,23 @@ class PipelineVisualizer(BasePlugin):
                             markdown_content += self.visualize_tasks(final)
                     elif kind.lower() == 'task':
                         markdown_content += f"## Description\n{spec.get('description','No description')}\n"
+                        markdown_content += self.visualize_results(spec.get('results', []))                        
                         markdown_content += self.visualize_parameters(spec.get('params', []))
                         markdown_content += self.visualize_workspaces(spec.get('workspaces', []))
                         markdown_content += self.visualize_steps(spec.get('steps', []))
-                        markdown_content += self.visualize_results(spec.get('results', []))
+                        #needs cleanup
+                        #task_yaml = [{
+                        #    'name': metadata.get('annotations',[]).get('tekton.dev/displayName',resource_name),
+                        #    'taskRef': {
+                        #        'name': resource_name,
+                        #    },
+                        #    'params': spec.get('params', []),
+                        #    'workspaces': spec.get('workspaces', []),
+                        #}]
+                        #markdown_content += "## Usage\n\n```yaml\n"
+                        #yaml_str = yaml.dump(task_yaml, default_flow_style=False)
+                        #markdown_content += yaml_str
+                        #markdown_content += "```\n\n"                        
                     else:
                         continue
 

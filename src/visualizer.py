@@ -189,33 +189,45 @@ class PipelineVisualizer(BasePlugin):
             if file.src_path.endswith(".yaml"):
                 # Generate the Markdown content from the YAML file
                 with open(file.abs_src_path, 'r') as f:
-                    resource = yaml.safe_load(f)
-                
-                kind = resource.get('kind', '')
-                metadata = resource.get('metadata', {})
-                spec = resource.get('spec', {})
-                resource_name = metadata.get('name', 'Unnamed Resource')
+                    try:
+                        # Load all documents in the YAML file
+                        resources = list(yaml.safe_load_all(f))
+                    except yaml.YAMLError as e:
+                        print(f"Error parsing YAML file {file.src_path}: {e}")
+                        continue
 
-                markdown_content = f"# {kind}: {resource_name}\n\n"
+                markdown_content = ""
+                for resource in resources:
+                    kind = resource.get('kind', '')
+                    metadata = resource.get('metadata', {})
+                    spec = resource.get('spec', {})
+                    resource_name = metadata.get('name', 'Unnamed Resource')
 
-                if kind.lower() == 'pipeline':
-                    tasks = spec.get('tasks', [])
-                    final = spec.get('finally', [])
-                    markdown_content += self.make_graph_from_tasks(tasks, final)
-                    markdown_content += self.visualize_parameters(spec.get('params', []))
-                    markdown_content += self.visualize_workspaces(spec.get('workspaces', []))
-                    markdown_content += self.visualize_tasks(tasks)
-                    if final:
-                        markdown_content += "## Finally\n\n"
-                        markdown_content += self.visualize_tasks(final)
-                elif kind.lower() == 'task':
-                    markdown_content += f"## Description\n{spec.get('description','No description')}\n"
-                    markdown_content += self.visualize_parameters(spec.get('params', []))
-                    markdown_content += self.visualize_workspaces(spec.get('workspaces', []))
-                    markdown_content += self.visualize_steps(spec.get('steps', []))
-                    markdown_content += self.visualize_results(spec.get('results', []))
-                else:
-                    markdown_content += f"\n\nUnsupported resource kind: {kind}\n"
+                    markdown_content += f"# {kind}: {resource_name}\n\n"
+
+                    if kind.lower() == 'pipeline':
+                        tasks = spec.get('tasks', [])
+                        final = spec.get('finally', [])
+                        markdown_content += self.make_graph_from_tasks(tasks, final)
+                        markdown_content += self.visualize_parameters(spec.get('params', []))
+                        markdown_content += self.visualize_workspaces(spec.get('workspaces', []))
+                        markdown_content += self.visualize_tasks(tasks)
+                        if final:
+                            markdown_content += "## Finally\n\n"
+                            markdown_content += self.visualize_tasks(final)
+                    elif kind.lower() == 'task':
+                        markdown_content += f"## Description\n{spec.get('description','No description')}\n"
+                        markdown_content += self.visualize_parameters(spec.get('params', []))
+                        markdown_content += self.visualize_workspaces(spec.get('workspaces', []))
+                        markdown_content += self.visualize_steps(spec.get('steps', []))
+                        markdown_content += self.visualize_results(spec.get('results', []))
+                    else:
+                        continue
+
+                    markdown_content += "\n---\n\n"  # Add separator between resources
+
+                # Ensure the directory structure exists
+                os.makedirs(os.path.dirname(file.abs_src_path.replace('.yaml', '.md')), exist_ok=True)
 
                 with open(file.abs_src_path.replace('.yaml', '.md'), 'w') as f:
                     f.write(markdown_content)
@@ -243,5 +255,5 @@ class PipelineVisualizer(BasePlugin):
                         nav[idx][key] = value.replace('.yaml', '.md')
                     elif isinstance(value, list):
                         self.update_nav(value)
-            elif isinstance(item, list):
-                self.update_nav(item)
+            elif isinstance(item, str) and item.endswith('.yaml'):
+                nav[idx] = item.replace('.yaml', '.md')

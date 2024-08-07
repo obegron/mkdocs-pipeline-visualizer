@@ -2,11 +2,24 @@ import os
 import yaml
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import File, Files
+from mkdocs.config import config_options
 
 class PipelineVisualizer(BasePlugin):
 
+    config_scheme = (
+        ('plantuml_graph_direction', config_options.Choice(['TB', 'LR'], default='TB')),
+        ('plantuml_theme', config_options.Type(str, default='_none_')),
+    )
+
+    def on_config(self, config):
+        if('LR' == self.config['plantuml_graph_direction']):
+            self.plantuml_graph_direction = "left to right direction"
+        else:
+            self.plantuml_graph_direction = "top to bottom direction"
+        self.plantuml_theme = self.config['plantuml_theme']
+
     def make_graph_from_tasks(self, tasks, final):
-        markdown_content = "```@startuml\nleft to right direction\n!theme hacker\n"
+        markdown_content = f"```plantuml\n@startuml\n{self.plantuml_graph_direction}\n!theme {self.plantuml_theme}\n"
         
         task_dependencies = {}
         all_tasks = set()
@@ -132,6 +145,10 @@ class PipelineVisualizer(BasePlugin):
                     
                     if value:
                         markdown_content += f"| `{name}` | `{value}` | Direct Value |\n"
+                    elif 'configMapKeyRef' in value_from:
+                        cm_name = value_from['configMapKeyRef'].get('name', 'Not specified')
+                        cm_key = value_from['configMapKeyRef'].get('key', 'Not specified')
+                        markdown_content += f"| `{name}` | `{cm_name}:{cm_key}` | ConfigMap Reference |\n"
                     elif 'fieldRef' in value_from:
                         field_path = value_from['fieldRef'].get('fieldPath', 'Not specified')
                         markdown_content += f"| `{name}` | `{field_path}` | Field Reference |\n"
@@ -186,6 +203,10 @@ class PipelineVisualizer(BasePlugin):
                     elif 'fieldRef' in value_from:
                         field_path = value_from['fieldRef'].get('fieldPath', 'Not specified')
                         markdown_content += f"| `{name}` | `{field_path}` | Field Reference |\n"
+                    elif 'configMapKeyRef' in value_from:
+                        cm_name = value_from['configMapKeyRef'].get('name', 'Not specified')
+                        cm_key = value_from['configMapKeyRef'].get('key', 'Not specified')
+                        markdown_content += f"| `{name}` | `{cm_name}:{cm_key}` | ConfigMap Reference |\n"
                     elif 'secretKeyRef' in value_from:
                         secret_name = value_from['secretKeyRef'].get('name', 'Not specified')
                         secret_key = value_from['secretKeyRef'].get('key', 'Not specified')

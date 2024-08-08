@@ -21,6 +21,11 @@ class PipelineVisualizer(BasePlugin):
         self.plantuml_theme = self.config["plantuml_theme"]
         self.plantum_graphs = self.config["plantuml_graphs"]
 
+    def __init__(self):
+        self.plantuml_theme = "_none_"
+        self.plantum_graphs = True
+        self.plantuml_graph_direction = "TB"
+
     def make_graph_from_tasks(self, tasks, final):
         markdown_content = f"```plantuml\n@startuml\n{self.plantuml_graph_direction}\n!theme {self.plantuml_theme}\n"
 

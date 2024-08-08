@@ -39,6 +39,9 @@ plugins:
 
 ## Changelog
 
+# 0.1.8
+* remove version of tasks until there is a nicer way to present it
+
 # 0.1.7
 * fix issue with \ in usage
 * correct example in readme

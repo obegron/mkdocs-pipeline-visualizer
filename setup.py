@@ -9,7 +9,7 @@ setup(
     name="mkdocs-pipeline-visualizer",
     version="0.1.5",
     description="generate MD documentation from tekton pipelines and tasks",
-    long_description=long_description
+    long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/obegron/mkdocs-pipeline-visualizer",
     packages=find_packages(),

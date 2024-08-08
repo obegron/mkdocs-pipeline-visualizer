@@ -64,6 +64,14 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += "@enduml\n```\n"
         return markdown_content
 
+    def format_value(self,value):
+        if isinstance(value, list):
+            value = "<ul>" + "".join(f"<li>{v}</li>" for v in value) + "</ul>"
+        elif isinstance(value, str) and '\n' in value:
+            value = value.replace('\n', '<br>')
+        return value
+
+
     def visualize_parameters(self, params):
         markdown_content = "## Parameters\n\n"
         markdown_content += "| Name | Type | Description | Default |\n"
@@ -71,7 +79,7 @@ class PipelineVisualizer(BasePlugin):
         for param in params:
             name = param.get('name', 'Unnamed Parameter')
             param_type = param.get('type', 'String')
-            description = param.get('description', 'No description provided.')
+            description = self.format_value(param.get('description', 'No description provided.'))
             default = param.get('default', '')
             if default == '':
                 markdown_content += f"| `{name}` | `{param_type}` | {description} |             |\n"
@@ -80,12 +88,14 @@ class PipelineVisualizer(BasePlugin):
         return markdown_content + "\n"
 
     def visualize_workspaces(self, workspaces):
+        if not workspaces:
+            return ""
         markdown_content = "## Workspaces\n\n"
         markdown_content += "| Name | Description | Optional |\n"
         markdown_content += "|------|-------------|----------|\n"
         for workspace in workspaces:
             name = workspace.get('name', 'Unnamed Workspace')
-            description = workspace.get('description', '').replace('\n', '<br>')
+            description = self.format_value(workspace.get('description', ''))
             optional = workspace.get("optional",False)
             markdown_content += f"| `{name}` | {description} | { optional } |\n"
         return markdown_content + "\n"
@@ -116,11 +126,7 @@ class PipelineVisualizer(BasePlugin):
                 markdown_content += "|------|-------|\n"
                 for param in params:
                     name = param.get('name', 'Unnamed Parameter')
-                    value = param.get('value', '')
-                    if isinstance(value, list):
-                        value = "<ul>" + "".join(f"<li>{v}</li>" for v in value) + "</ul>"
-                    elif isinstance(value, str) and '\n' in value:
-                        value = value.replace('\n', '<br>')
+                    value = self.format_value(param.get('value', ''))                   
                     if '<br>' in str(value) or '<ul>' in str(value) or value == '':
                         markdown_content += f"| `{name}` | {value} |\n"
                     else:
@@ -140,36 +146,43 @@ class PipelineVisualizer(BasePlugin):
                 markdown_content += "\n"
             
             # Environment Variables
-            env = task.get('env', [])
-            if env:
-                markdown_content += "**Environment Variables:**\n\n"
-                markdown_content += "| Name | Value | Source |\n"
-                markdown_content += "|------|-------|--------|\n"
-                for var in env:
-                    name = var.get('name', 'Unnamed Variable')
-                    value = var.get('value', '')
-                    value_from = var.get('valueFrom', {})
-                    
-                    if value:
-                        markdown_content += f"| `{name}` | `{value}` | Direct Value |\n"
-                    elif 'configMapKeyRef' in value_from:
-                        cm_name = value_from['configMapKeyRef'].get('name', 'Not specified')
-                        cm_key = value_from['configMapKeyRef'].get('key', 'Not specified')
-                        markdown_content += f"| `{name}` | `{cm_name}:{cm_key}` | ConfigMap Reference |\n"
-                    elif 'fieldRef' in value_from:
-                        field_path = value_from['fieldRef'].get('fieldPath', 'Not specified')
-                        markdown_content += f"| `{name}` | `{field_path}` | Field Reference |\n"
-                    elif 'secretKeyRef' in value_from:
-                        secret_name = value_from['secretKeyRef'].get('name', 'Not specified')
-                        secret_key = value_from['secretKeyRef'].get('key', 'Not specified')
-                        markdown_content += f"| `{name}` | `{secret_name}:{secret_key}` | Secret Reference |\n"
-                    else:
-                        markdown_content += f"| `{name}` | Not specified | Unknown |\n"
-                markdown_content += "\n"            
+            markdown_content += self.visualize_environment(task.get('env', []))
             markdown_content += "---\n\n"
         
         return markdown_content
 
+    def visualize_environment(self, env):
+        if not env:
+            return ""
+
+        markdown_content = "**Environment Variables:**\n\n"
+        markdown_content += "| Name | Value | Source | Optional |\n"
+        markdown_content += "|------|-------|--------|----------|\n"
+        for var in env:
+            name = var.get('name', 'Unnamed Variable')
+            value = var.get('value', '')            
+            value_from = var.get('valueFrom', {})
+            
+            if value:
+                markdown_content += f"| `{name}` | `{value}` |  |  |\n"
+            elif 'configMapKeyRef' in value_from:
+                cm_name = value_from['configMapKeyRef'].get('name', 'Not specified')
+                cm_key = value_from['configMapKeyRef'].get('key', 'Not specified')
+                optional = value_from['configMapKeyRef'].get('optional', False)
+                markdown_content += f"| `{name}` | `{cm_name}:{cm_key}` | ConfigMap Reference | {optional} |\n"
+            elif 'fieldRef' in value_from:
+                field_path = value_from['fieldRef'].get('fieldPath', 'Not specified')
+                markdown_content += f"| `{name}` | `{field_path}` | Field Reference | |\n"
+            elif 'secretKeyRef' in value_from:
+                secret_name = value_from['secretKeyRef'].get('name', 'Not specified')
+                secret_key = value_from['secretKeyRef'].get('key', 'Not specified')
+                optional = value_from['secretKeyRef'].get('optional', False)
+                markdown_content += f"| `{name}` | `{secret_name}:{secret_key}` | Secret Reference | {optional} |\n"
+            else:
+                markdown_content += f"| `{name}` | Not specified | Unknown |\n"
+        markdown_content += "\n"
+        return markdown_content
+    
     def visualize_steps(self, steps):
         markdown_content = "## Steps\n\n"
         for i, step in enumerate(steps, 1):
@@ -195,33 +208,7 @@ class PipelineVisualizer(BasePlugin):
                 markdown_content += "\n```\n\n"
             
             # Environment Variables
-            env = step.get('env', [])
-            if env:
-                markdown_content += "**Environment Variables:**\n\n"
-                markdown_content += "| Name | Value | Source |\n"
-                markdown_content += "|------|-------|--------|\n"
-                for var in env:
-                    name = var.get('name', 'Unnamed Variable')
-                    value = var.get('value', '')
-                    value_from = var.get('valueFrom', {})
-                    
-                    if value:
-                        markdown_content += f"| `{name}` | `{value}` |  |\n"
-                    elif 'fieldRef' in value_from:
-                        field_path = value_from['fieldRef'].get('fieldPath', 'Not specified')
-                        markdown_content += f"| `{name}` | `{field_path}` | Field Reference |\n"
-                    elif 'configMapKeyRef' in value_from:
-                        cm_name = value_from['configMapKeyRef'].get('name', 'Not specified')
-                        cm_key = value_from['configMapKeyRef'].get('key', 'Not specified')
-                        markdown_content += f"| `{name}` | `{cm_name}:{cm_key}` | ConfigMap Reference |\n"
-                    elif 'secretKeyRef' in value_from:
-                        secret_name = value_from['secretKeyRef'].get('name', 'Not specified')
-                        secret_key = value_from['secretKeyRef'].get('key', 'Not specified')
-                        markdown_content += f"| `{name}` | `{secret_name}:{secret_key}` | Secret Reference |\n"
-                    else:
-                        markdown_content += f"| `{name}` | Not specified | Unknown |\n"
-                markdown_content += "\n"
-                    
+            markdown_content += self.visualize_environment(step.get('env', []))
         return markdown_content
 
     def visualize_results(self, results):
@@ -253,6 +240,9 @@ class PipelineVisualizer(BasePlugin):
                           for ws in spec.get('workspaces', []) if not ws.get('optional', False)]
         }
 
+        if not spec.get('workspaces', []):
+            usage_yaml.pop('workspaces')
+            
         yaml_str = yaml.dump([usage_yaml], default_flow_style=False)
         return f"""
 ## Usage
@@ -290,8 +280,8 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                     metadata = resource.get('metadata', {})
                     spec = resource.get('spec', {})
                     resource_name = metadata.get('name', 'Unnamed Resource')
-
-                    markdown_content += f"# {kind}: {resource_name}\n\n"
+                    version = metadata.get('labels',{}).get('app.kubernetes.io/version','')
+                    markdown_content += f"# {kind}: {resource_name} {version}\n\n"
 
                     if kind.lower() == 'pipeline':
                         tasks = spec.get('tasks', [])
@@ -306,8 +296,8 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                             markdown_content += self.visualize_tasks(final)
                     elif kind.lower() == 'task':
                         markdown_content += f"## Description\n{spec.get('description','No description')}\n"
-                        markdown_content += self.visualize_results(spec.get('results', []))                        
                         markdown_content += self.visualize_parameters(spec.get('params', []))
+                        markdown_content += self.visualize_results(spec.get('results', []))
                         markdown_content += self.visualize_workspaces(spec.get('workspaces', []))
                         markdown_content += self.visualize_steps(spec.get('steps', []))
                         markdown_content += self.visualize_usage(metadata,spec)

@@ -39,6 +39,10 @@ plugins:
 
 ## Changelog
 
+# 0.1.6
+* hide workspaces for tasks when none are used
+* show version of pipeline/task when available 
+
 # 0.1.5
 * remove extra --- after tasks
 * sample of how to use task in pipeline

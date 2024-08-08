@@ -13,11 +13,9 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/obegron/mkdocs-pipeline-visualizer",
     packages=find_packages(),
-    author='Christer Grönblad',
-    install_requires=['mkdocs'],
+    author="Christer Grönblad",
+    install_requires=["mkdocs"],
     entry_points={
-        'mkdocs.plugins': [
-            'pipeline-visualizer = src.visualizer:PipelineVisualizer'
-        ]
-    }
+        "mkdocs.plugins": ["pipeline-visualizer = src.visualizer:PipelineVisualizer"]
+    },
 )

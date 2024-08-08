@@ -39,6 +39,10 @@ plugins:
 
 ## Changelog
 
+# 0.1.7
+* fix issue with \ in usage
+* correct example in readme
+
 # 0.1.6
 * hide workspaces for tasks when none are used
 * show version of pipeline/task when available 

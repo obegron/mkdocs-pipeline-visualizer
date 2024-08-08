@@ -9,6 +9,7 @@ class PipelineVisualizer(BasePlugin):
     config_scheme = (
         ('plantuml_graph_direction', config_options.Choice(['TB', 'LR'], default='TB')),
         ('plantuml_theme', config_options.Type(str, default='_none_')),
+        ('plantuml_graphs', config_options.Type(bool, default=True)),
     )
 
     def on_config(self, config):
@@ -17,6 +18,7 @@ class PipelineVisualizer(BasePlugin):
         else:
             self.plantuml_graph_direction = "top to bottom direction"
         self.plantuml_theme = self.config['plantuml_theme']
+        self.plantum_graphs = self.config['plantuml_graphs']
 
     def make_graph_from_tasks(self, tasks, final):
         markdown_content = f"```plantuml\n@startuml\n{self.plantuml_graph_direction}\n!theme {self.plantuml_theme}\n"
@@ -219,9 +221,7 @@ class PipelineVisualizer(BasePlugin):
                     else:
                         markdown_content += f"| `{name}` | Not specified | Unknown |\n"
                 markdown_content += "\n"
-            
-            markdown_content += "---\n\n"
-        
+                    
         return markdown_content
 
     def visualize_results(self, results):
@@ -236,6 +236,38 @@ class PipelineVisualizer(BasePlugin):
             markdown_content += f"| `{name}` | {description} |\n"
         return markdown_content + "\n"
 
+    def visualize_usage(self, metadata, spec):
+        task_name = metadata.get('name', 'Unnamed Task')
+        task_display_name = metadata.get('annotations', {}).get('tekton.dev/displayName', task_name)
+
+        usage_yaml = {
+            'name': task_display_name,
+            'taskRef': {
+                'name': task_name
+            },
+            'runAfter': [
+                '<TASK_NAME>'
+            ],
+            'params': [{'name': param['name'], 'value': '<VALUE>'} for param in spec.get('params', []) if 'default' not in param],
+            'workspaces': [{'name': ws['name'], 'workspace': '<WORKSPACE_NAME>'}
+                          for ws in spec.get('workspaces', []) if not ws.get('optional', False)]
+        }
+
+        yaml_str = yaml.dump([usage_yaml], default_flow_style=False)
+        return f"""
+## Usage
+
+This is the minimum configuration required to use the `{task_name}` task in your pipeline.
+
+```yaml
+{yaml_str}
+```
+
+Placeholders should be replaced with the appropriate values for your specific use case. Refer to the task's documentation for more details on the available parameters and workspaces.
+The `runAfter` parameter is optional and only needed if you want to specify task dependencies for flow control.
+
+"""
+
     def on_files(self, files, config):
         new_files = []
         for file in files:            
@@ -248,6 +280,9 @@ class PipelineVisualizer(BasePlugin):
                     except yaml.YAMLError as e:
                         print(f"Error parsing YAML file {file.src_path}: {e}")
                         continue
+                
+                if not resources[0].get('kind', '').lower() in ['pipeline','task']:
+                    continue
 
                 markdown_content = ""
                 for resource in resources:
@@ -261,7 +296,8 @@ class PipelineVisualizer(BasePlugin):
                     if kind.lower() == 'pipeline':
                         tasks = spec.get('tasks', [])
                         final = spec.get('finally', [])
-                        markdown_content += self.make_graph_from_tasks(tasks, final)
+                        if self.plantum_graphs:
+                            markdown_content += self.make_graph_from_tasks(tasks, final)
                         markdown_content += self.visualize_parameters(spec.get('params', []))
                         markdown_content += self.visualize_workspaces(spec.get('workspaces', []))
                         markdown_content += self.visualize_tasks(tasks)
@@ -274,21 +310,7 @@ class PipelineVisualizer(BasePlugin):
                         markdown_content += self.visualize_parameters(spec.get('params', []))
                         markdown_content += self.visualize_workspaces(spec.get('workspaces', []))
                         markdown_content += self.visualize_steps(spec.get('steps', []))
-                        #needs cleanup
-                        #task_yaml = [{
-                        #    'name': metadata.get('annotations',[]).get('tekton.dev/displayName',resource_name),
-                        #    'taskRef': {
-                        #        'name': resource_name,
-                        #    },
-                        #    'params': spec.get('params', []),
-                        #    'workspaces': spec.get('workspaces', []),
-                        #}]
-                        #markdown_content += "## Usage\n\n```yaml\n"
-                        #yaml_str = yaml.dump(task_yaml, default_flow_style=False)
-                        #markdown_content += yaml_str
-                        #markdown_content += "```\n\n"                        
-                    else:
-                        continue
+                        markdown_content += self.visualize_usage(metadata,spec)
 
                     markdown_content += "\n---\n\n"  # Add separator between resources
 

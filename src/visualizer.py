@@ -281,9 +281,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                     metadata = resource.get('metadata', {})
                     spec = resource.get('spec', {})
                     resource_name = metadata.get('name', 'Unnamed Resource')
-                    version = metadata.get('labels',{}).get('app.kubernetes.io/version','')
-                    markdown_content += f"# {kind}: {resource_name} {version}\n\n"
-
+                    markdown_content += f"# {kind}: {resource_name}\n"
                     if kind.lower() == 'pipeline':
                         tasks = spec.get('tasks', [])
                         final = spec.get('finally', [])

@@ -27,7 +27,7 @@ plugins:
 
 ```yaml
 plugins:
-  - techdocs-core:
+  - pipeline-visualizer:
       plantuml_graphs: True
       plantuml_graph_direction: TB
       plantuml_theme: _none_

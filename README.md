@@ -69,4 +69,4 @@ plugins:
 * change how default and empty values are presented
 
 # 0.1.1
-* fix issue with multicods
+* fix issue with multidocs

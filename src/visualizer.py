@@ -260,7 +260,7 @@ class PipelineVisualizer(BasePlugin):
 This is the minimum configuration required to use the `{task_name}` task in your pipeline.
 
 ```yaml
-{yaml_str}
+{'\n'.join('    ' + line for line in yaml_str.splitlines())}
 ```
 
 Placeholders should be replaced with the appropriate values for your specific use case. Refer to the task's documentation for more details on the available parameters and workspaces.

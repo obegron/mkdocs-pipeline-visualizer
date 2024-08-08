@@ -244,13 +244,14 @@ class PipelineVisualizer(BasePlugin):
             usage_yaml.pop('workspaces')
             
         yaml_str = yaml.dump([usage_yaml], default_flow_style=False)
+        usage = '\n'.join('    ' + line for line in yaml_str.splitlines())
         return f"""
 ## Usage
 
 This is the minimum configuration required to use the `{task_name}` task in your pipeline.
 
 ```yaml
-{'\n'.join('    ' + line for line in yaml_str.splitlines())}
+{usage}
 ```
 
 Placeholders should be replaced with the appropriate values for your specific use case. Refer to the task's documentation for more details on the available parameters and workspaces.

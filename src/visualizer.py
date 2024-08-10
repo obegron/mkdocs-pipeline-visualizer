@@ -14,7 +14,11 @@ class PipelineVisualizer(BasePlugin):
     )
 
     def on_config(self, config):
-        self.plantuml_graph_direction = "left to right direction" if self.config["plantuml_graph_direction"] == "LR" else "top to bottom direction"
+        self.plantuml_graph_direction = (
+            "left to right direction"
+            if self.config["plantuml_graph_direction"] == "LR"
+            else "top to bottom direction"
+        )
         self.plantuml_theme = self.config["plantuml_theme"]
         self.plantum_graphs = self.config["plantuml_graphs"]
 
@@ -41,9 +45,7 @@ class PipelineVisualizer(BasePlugin):
             else:
                 tasks_with_dependencies.add(task_name)
                 for dependency in run_after:
-                    if dependency not in task_dependencies:
-                        task_dependencies[dependency] = []
-                    task_dependencies[dependency].append(task_name)
+                    task_dependencies.setdefault(dependency, []).append(task_name)
 
         # Generate the task dependency diagram
         for task, dependencies in task_dependencies.items():
@@ -94,14 +96,7 @@ class PipelineVisualizer(BasePlugin):
                 param.get("description", "No description provided.")
             )
             default = param.get("default", "")
-            if default == "":
-                markdown_content += (
-                    f"| `{name}` | `{param_type}` | {description} |             |\n"
-                )
-            else:
-                markdown_content += (
-                    f"| `{name}` | `{param_type}` | {description} | `{default}` |\n"
-                )
+            markdown_content += f"| `{name}` | `{param_type}` | {description} | {f'`{default}`' if default else ''} |\n"
         return markdown_content + "\n"
 
     def visualize_workspaces(self, workspaces):
@@ -298,43 +293,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                 if not resources[0].get("kind", "").lower() in ["pipeline", "task"]:
                     continue
 
-                markdown_content = ""
-                for resource in resources:
-                    kind = resource.get("kind", "")
-                    metadata = resource.get("metadata", {})
-                    spec = resource.get("spec", {})
-                    resource_name = metadata.get("name", "Unnamed Resource")
-                    markdown_content += f"# {kind}: {resource_name}\n"
-                    if kind.lower() == "pipeline":
-                        tasks = spec.get("tasks", [])
-                        final = spec.get("finally", [])
-                        if self.plantum_graphs:
-                            markdown_content += self.make_graph_from_tasks(tasks, final)
-                        markdown_content += self.visualize_parameters(
-                            spec.get("params", [])
-                        )
-                        markdown_content += self.visualize_workspaces(
-                            spec.get("workspaces", [])
-                        )
-                        markdown_content += self.visualize_tasks(tasks)
-                        if final:
-                            markdown_content += "## Finally\n\n"
-                            markdown_content += self.visualize_tasks(final)
-                    elif kind.lower() == "task":
-                        markdown_content += f"## Description\n{spec.get('description','No description')}\n"
-                        markdown_content += self.visualize_parameters(
-                            spec.get("params", [])
-                        )
-                        markdown_content += self.visualize_results(
-                            spec.get("results", [])
-                        )
-                        markdown_content += self.visualize_workspaces(
-                            spec.get("workspaces", [])
-                        )
-                        markdown_content += self.visualize_steps(spec.get("steps", []))
-                        markdown_content += self.visualize_usage(metadata, spec)
-
-                    markdown_content += "\n---\n\n"  # Add separator between resources
+                markdown_content = self.generate_markdown_content(resources)
 
                 # Ensure the directory structure exists
                 os.makedirs(
@@ -358,6 +317,48 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
         self.update_nav(config["nav"])
         return Files(new_files)
+
+    def generate_markdown_content(self, resources):
+        markdown_content = ""
+        for resource in resources:
+            kind = resource.get("kind", "")
+            metadata = resource.get("metadata", {})
+            spec = resource.get("spec", {})
+            resource_name = metadata.get("name", "Unnamed Resource")
+            markdown_content += f"# {kind}: {resource_name}\n"
+
+            if kind.lower() == "pipeline":
+                markdown_content += self.visualize_pipeline(spec)
+            elif kind.lower() == "task":
+                markdown_content += self.visualize_task(metadata, spec)
+
+            markdown_content += "\n---\n\n"
+        return markdown_content
+
+    def visualize_pipeline(self, spec):
+        markdown_content = ""
+        tasks = spec.get("tasks", [])
+        final = spec.get("finally", [])
+        if self.plantum_graphs:
+            markdown_content += self.make_graph_from_tasks(tasks, final)
+        markdown_content += self.visualize_parameters(spec.get("params", []))
+        markdown_content += self.visualize_workspaces(spec.get("workspaces", []))
+        markdown_content += self.visualize_tasks(tasks)
+        if final:
+            markdown_content += "## Finally\n\n"
+            markdown_content += self.visualize_tasks(final)
+        return markdown_content
+
+    def visualize_task(self, metadata, spec):
+        markdown_content = (
+            f"## Description\n{spec.get('description','No description')}\n"
+        )
+        markdown_content += self.visualize_parameters(spec.get("params", []))
+        markdown_content += self.visualize_results(spec.get("results", []))
+        markdown_content += self.visualize_workspaces(spec.get("workspaces", []))
+        markdown_content += self.visualize_steps(spec.get("steps", []))
+        markdown_content += self.visualize_usage(metadata, spec)
+        return markdown_content
 
     def update_nav(self, nav):
         # Recursively update the nav entries

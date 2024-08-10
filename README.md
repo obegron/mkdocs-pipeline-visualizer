@@ -12,26 +12,25 @@ Example of mkdocs.yaml
 
 ```yaml
 site_name: Tekton
+docs_dir: ./tekton
 
 nav:
   - Home: index.md
-  - Deployment Pipeline: ./path/to/pipeline/deploy-pipeline.md
 
 plugins:
   - pipeline-visualizer
+
+markdown_extensions:
+  plantuml_markdown:
+    server: http://www.plantuml.com/plantuml
+
+theme:
+  name: material
+  features:
+    - navigation.sections
 ```
 
-./path/to/pipeline/deploy-pipeline.md is the path to the actual pipeline definition but replace the extension from `.yaml` to `.md`
-
-(Optional) configuration these are the default values
-
-```yaml
-plugins:
-  - pipeline-visualizer:
-      plantuml_graphs: True
-      plantuml_graph_direction: TB
-      plantuml_theme: _none_
-```
+Default it creates two sections in root Pipelines and Tasks, doc_dir should point to directory pipelines and tasks
 
 | Config parameter | Type | Description | Default | Implemented in |
 | ---------------- | ---- | ----------- | ------- | -------------- |
@@ -42,7 +41,48 @@ plugins:
 | `nav_section_pipelines` | **[string]** | section name used for pipelines | Pipelines | 0.2.0 |
 | `nav_section_tasks` | **[string]** | section name used for tasks | Tasks | 0.2.0 |
 
+## HowTo
+
+You can change location of documentation. Place a empty Section in any location of nav with the value of `nav_section_pipeline` or `nav_section_tasks`
+
+```yaml
+site_name: Tekton
+docs_dir: ./tekton
+
+nav:
+  - Home: index.md
+  - Tekton:
+    - "Tasks": []
+    - "Pipelines": []
+
+plugins:
+  - pipeline-visualizer
+```
+
+To change the menu section name and custom graph theme
+
+```yaml
+site_name: Tekton
+docs_dir: ./tekton
+
+nav:
+  - Home: index.md  
+  - Tekton:
+    - "🛠️ Tasks": []
+    - "🚀 Pipelines": []
+
+plugins:
+  - pipeline-visualizer:
+      plantuml_theme: hacker
+      nav_section_tasks: "🛠️ Tasks"
+      nav_section_pipelines: "🚀 Pipelines"
+```
+
 ## Changelog
+
+# 0.2.0
+* generate nav tree by default
+* enable change change of section names and locations
 
 # 0.1.8
 * remove version of tasks until there is a nicer way to present it

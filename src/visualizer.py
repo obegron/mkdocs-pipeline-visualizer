@@ -11,6 +11,7 @@ class PipelineVisualizer(BasePlugin):
         ("plantuml_graph_direction", config_options.Choice(["TB", "LR"], default="TB")),
         ("plantuml_theme", config_options.Type(str, default="_none_")),
         ("plantuml_graphs", config_options.Type(bool, default=True)),
+        ("auto_nav", config_options.Type(bool, default=False))
     )
 
     def on_config(self, config):
@@ -21,11 +22,7 @@ class PipelineVisualizer(BasePlugin):
         )
         self.plantuml_theme = self.config["plantuml_theme"]
         self.plantum_graphs = self.config["plantuml_graphs"]
-
-    def __init__(self):
-        self.plantuml_theme = "_none_"
-        self.plantum_graphs = True
-        self.plantuml_graph_direction = "TB"
+        self.auto_nav = self.config["auto_nav"]
 
     def make_graph_from_tasks(self, tasks, final):
         markdown_content = f"```plantuml\n@startuml\n{self.plantuml_graph_direction}\n!theme {self.plantuml_theme}\n"
@@ -279,6 +276,9 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
     def on_files(self, files, config):
         new_files = []
+        nav = config['nav']
+        nav.append({'pipeline': []})
+        nav.append({'task': []})
         for file in files:
             if file.src_path.endswith(".yaml"):
                 # Generate the Markdown content from the YAML file
@@ -289,8 +289,8 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                     except yaml.YAMLError as e:
                         print(f"Error parsing YAML file {file.src_path}: {e}")
                         continue
-
-                if not resources[0].get("kind", "").lower() in ["pipeline", "task"]:
+                kind = resources[0].get("kind", "").lower()
+                if not kind in ["pipeline", "task"]:
                     continue
 
                 markdown_content = self.generate_markdown_content(resources)
@@ -311,11 +311,20 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                     file.dest_dir,
                     config["site_dir"],
                 )
+                if self.auto_nav:
+                    metadata = resources[0].get("metadata", {})
+                    task_name = metadata.get("name", "Unnamed Task")
+                    task_version = metadata.get("labels", {}).get("app.kubernetes.io/version", "")
+                    if task_version:
+                        task_version = f" - {task_version}"
+                    if kind == "pipeline":
+                        nav[1].get("pipeline").append({f"{task_name}{task_version}": file.src_path.replace(".yaml",".md")})
+                    if kind == "task":
+                        nav[2].get("task").append({f"{task_name}{task_version}": file.src_path.replace(".yaml",".md")})
                 new_files.append(new_file)
             else:
                 new_files.append(file)
 
-        self.update_nav(config["nav"])
         return Files(new_files)
 
     def generate_markdown_content(self, resources):
@@ -359,6 +368,3 @@ The `runAfter` parameter is optional and only needed if you want to specify task
         markdown_content += self.visualize_steps(spec.get("steps", []))
         markdown_content += self.visualize_usage(metadata, spec)
         return markdown_content
-
-    def update_nav(self, nav):
-        return nav

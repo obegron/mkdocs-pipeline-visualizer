@@ -11,7 +11,7 @@ class PipelineVisualizer(BasePlugin):
         ("plantuml_graph_direction", config_options.Choice(["TB", "LR"], default="TB")),
         ("plantuml_theme", config_options.Type(str, default="_none_")),
         ("plantuml_graphs", config_options.Type(bool, default=True)),
-        ("auto_nav", config_options.Type(bool, default=False))
+        ("auto_nav", config_options.Type(bool, default=False)),
     )
 
     def on_config(self, config):
@@ -276,56 +276,108 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
     def on_files(self, files, config):
         new_files = []
-        nav = config['nav']
-        nav.append({'pipeline': []})
-        nav.append({'task': []})
+        pipeline_versions, task_versions = {}, {}
+
         for file in files:
             if file.src_path.endswith(".yaml"):
-                # Generate the Markdown content from the YAML file
-                with open(file.abs_src_path, "r") as f:
-                    try:
-                        # Load all documents in the YAML file
-                        resources = list(yaml.safe_load_all(f))
-                    except yaml.YAMLError as e:
-                        print(f"Error parsing YAML file {file.src_path}: {e}")
-                        continue
-                kind = resources[0].get("kind", "").lower()
-                if not kind in ["pipeline", "task"]:
-                    continue
-
-                markdown_content = self.generate_markdown_content(resources)
-
-                # Ensure the directory structure exists
-                os.makedirs(
-                    os.path.dirname(file.abs_src_path.replace(".yaml", ".md")),
-                    exist_ok=True,
+                new_file = self.process_yaml_file(
+                    file, config, pipeline_versions, task_versions
                 )
-
-                with open(file.abs_src_path.replace(".yaml", ".md"), "w") as f:
-                    f.write(markdown_content)
-
-                # Add entry for the new file
-                new_file = File(
-                    file.src_path.replace(".yaml", ".md"),
-                    file.src_dir,
-                    file.dest_dir,
-                    config["site_dir"],
-                )
-                if self.auto_nav:
-                    metadata = resources[0].get("metadata", {})
-                    task_name = metadata.get("name", "Unnamed Task")
-                    task_version = metadata.get("labels", {}).get("app.kubernetes.io/version", "")
-                    if task_version:
-                        task_version = f" - {task_version}"
-                    if kind == "pipeline":
-                        nav[1].get("pipeline").append({f"{task_name}{task_version}": file.src_path.replace(".yaml",".md")})
-                    if kind == "task":
-                        nav[2].get("task").append({f"{task_name}{task_version}": file.src_path.replace(".yaml",".md")})
-                new_files.append(new_file)
+                if new_file:
+                    new_files.append(new_file)
             else:
                 new_files.append(file)
 
+        if self.auto_nav:
+            self.update_navigation(config["nav"], pipeline_versions, task_versions)
+
         return Files(new_files)
+
+    def process_yaml_file(self, file, config, pipeline_versions, task_versions):
+        resources = self.load_yaml(file.abs_src_path)
+        if not resources:
+            return None
+
+        kind = resources[0].get("kind", "").lower()
+        if kind not in ["pipeline", "task"]:
+            return None
+
+        markdown_content = self.generate_markdown_content(resources)
+        new_file = self.create_markdown_file(file, config, markdown_content)
+
+        if self.auto_nav:
+            self.add_to_versions(
+                resources[0], new_file, kind, pipeline_versions, task_versions
+            )
+
+        return new_file
+
+    def load_yaml(self, file_path):
+        try:
+            with open(file_path, "r") as f:
+                return list(yaml.safe_load_all(f))
+        except yaml.YAMLError as e:
+            print(f"Error parsing YAML file {file_path}: {e}")
+            return None
+
+    def create_markdown_file(self, original_file, config, content):
+        md_file_path = original_file.abs_src_path.replace(".yaml", ".md")
+        os.makedirs(os.path.dirname(md_file_path), exist_ok=True)
+
+        with open(md_file_path, "w") as f:
+            f.write(content)
+
+        return File(
+            original_file.src_path.replace(".yaml", ".md"),
+            original_file.src_dir,
+            original_file.dest_dir,
+            config["site_dir"],
+        )
+
+    def add_to_versions(
+        self, resource, new_file, kind, pipeline_versions, task_versions
+    ):
+        metadata = resource.get("metadata", {})
+        resource_name = metadata.get("name", "Unnamed Resource")
+        resource_version = metadata.get("labels", {}).get(
+            "app.kubernetes.io/version", ""
+        )
+
+        versions_dict = pipeline_versions if kind == "pipeline" else task_versions
+
+        if resource_name not in versions_dict:
+            versions_dict[resource_name] = []
+        versions_dict[resource_name].append((resource_version, new_file.src_path))
+
+    def update_navigation(self, nav, pipeline_versions, task_versions):
+        pipeline_index = self.ensure_nav_section(nav, "Pipelines")
+        task_index = self.ensure_nav_section(nav, "Tasks")
+
+        self.add_to_nav(nav[pipeline_index]["Pipelines"], pipeline_versions)
+        self.add_to_nav(nav[task_index]["Tasks"], task_versions)
+
+    def ensure_nav_section(self, nav, section_name):
+        index = next((i for i, item in enumerate(nav) if section_name in item), None)
+        if index is None:
+            nav.append({section_name: []})
+            return len(nav) - 1
+        return index
+
+    def add_to_nav(self, nav_list, versions_dict):
+        for resource_name, versions in versions_dict.items():
+            sorted_versions = sorted(
+                versions, key=lambda x: x[0] if x[0] else "", reverse=True
+            )
+            if len(sorted_versions) == 1:
+                nav_list.append({resource_name: sorted_versions[0][1]})
+            else:
+                nav_list.append(
+                    {
+                        resource_name: [
+                            {v[0] if v[0] else "unnamed": v[1]} for v in sorted_versions
+                        ]
+                    }
+                )
 
     def generate_markdown_content(self, resources):
         markdown_content = ""

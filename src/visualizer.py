@@ -3,6 +3,7 @@ import yaml
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import File, Files
 from mkdocs.config import config_options
+from packaging import version
 
 
 class PipelineVisualizer(BasePlugin):
@@ -302,8 +303,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
         if kind not in ["pipeline", "task"]:
             return None
 
-        markdown_content = self.generate_markdown_content(resources)
-        new_file = self.create_markdown_file(file, config, markdown_content)
+        new_file = self.create_markdown_file(file, config, self.generate_markdown_content(resources))
 
         if self.auto_nav:
             self.add_to_versions(
@@ -364,20 +364,21 @@ The `runAfter` parameter is optional and only needed if you want to specify task
         return index
 
     def add_to_nav(self, nav_list, versions_dict):
+        def semantic_version_key( version_tuple):
+            ver, _ = version_tuple
+            if not ver:
+                return version.parse("0.0.0")
+            try:
+                return version.parse(ver)
+            except version.InvalidVersion:
+                return version.parse("0.0.0")
+            
         for resource_name, versions in versions_dict.items():
-            sorted_versions = sorted(
-                versions, key=lambda x: x[0] if x[0] else "", reverse=True
-            )
+            sorted_versions = sorted(versions, key=semantic_version_key, reverse=True)
             if len(sorted_versions) == 1:
                 nav_list.append({resource_name: sorted_versions[0][1]})
             else:
-                nav_list.append(
-                    {
-                        resource_name: [
-                            {v[0] if v[0] else "unnamed": v[1]} for v in sorted_versions
-                        ]
-                    }
-                )
+                nav_list.append({resource_name: [{v[0] if v[0] else "No version": v[1]} for v in sorted_versions]})
 
     def generate_markdown_content(self, resources):
         markdown_content = ""
@@ -386,7 +387,13 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             metadata = resource.get("metadata", {})
             spec = resource.get("spec", {})
             resource_name = metadata.get("name", "Unnamed Resource")
-            markdown_content += f"# {kind}: {resource_name}\n"
+            resource_version = metadata.get("labels", {}).get(
+            "app.kubernetes.io/version", ""
+            )
+            if resource_version:
+                resource_version = f" v{resource_version}"
+
+            markdown_content += f"# {kind}: {resource_name}{resource_version}\n"
 
             if kind.lower() == "pipeline":
                 markdown_content += self.visualize_pipeline(spec)

@@ -76,10 +76,19 @@ class PipelineVisualizer(BasePlugin):
             value = value.replace("\n", "<br>")
         return value
 
+    def table_with_header(self, header, table_headers):
+        col_headers = "|"
+        under_line = "|"
+        for col in table_headers:
+            col_headers += f" {col} |"
+            under_line += f" { '-' * len(col) } |"
+        return f"{header}\n\n{col_headers}\n{under_line}\n"
+
+
     def visualize_parameters(self, params):
-        markdown_content = "## Parameters\n\n"
-        markdown_content += "| Name | Type | Description | Default |\n"
-        markdown_content += "|------|------|-------------|--------|\n"
+        if not params:
+            return ""
+        markdown_content = self.table_with_header("## Parameters", ['Name','Type','Description','Default'])
         for param in params:
             name = param.get("name", "Unnamed Parameter")
             param_type = param.get("type", "String")
@@ -100,9 +109,7 @@ class PipelineVisualizer(BasePlugin):
     def visualize_workspaces(self, workspaces):
         if not workspaces:
             return ""
-        markdown_content = "## Workspaces\n\n"
-        markdown_content += "| Name | Description | Optional |\n"
-        markdown_content += "|------|-------------|----------|\n"
+        markdown_content = self.table_with_header("## Workspaces",['Name','Description','Optional'])
         for workspace in workspaces:
             name = workspace.get("name", "Unnamed Workspace")
             description = self.format_value(workspace.get("description", ""))
@@ -133,9 +140,7 @@ class PipelineVisualizer(BasePlugin):
             # Parameters
             params = task.get("params", [])
             if params:
-                markdown_content += "**Parameters:**\n\n"
-                markdown_content += "| Name | Value |\n"
-                markdown_content += "|------|-------|\n"
+                markdown_content += self.table_with_header("**Parameters**",['Name','Value'])
                 for param in params:
                     name = param.get("name", "Unnamed Parameter")
                     value = self.format_value(param.get("value", ""))
@@ -148,9 +153,7 @@ class PipelineVisualizer(BasePlugin):
             # Workspaces
             workspaces = task.get("workspaces", [])
             if workspaces:
-                markdown_content += "**Workspaces:**\n\n"
-                markdown_content += "| Name | Workspace |\n"
-                markdown_content += "|------|----------|\n"
+                markdown_content +=  self.table_with_header("**Workspaces**",['Name','Workspace'])
                 for workspace in workspaces:
                     name = workspace.get("name", "Unnamed Workspace")
                     workspace_name = workspace.get("workspace", "Not specified")
@@ -166,10 +169,7 @@ class PipelineVisualizer(BasePlugin):
     def visualize_environment(self, env):
         if not env:
             return ""
-
-        markdown_content = "**Environment Variables:**\n\n"
-        markdown_content += "| Name | Value | Source | Optional |\n"
-        markdown_content += "|------|-------|--------|----------|\n"
+        markdown_content = self.table_with_header("**Environment Variables:**",['Name','Value','Source','Optional'])
         for var in env:
             name = var.get("name", "Unnamed Variable")
             value = var.get("value", "")
@@ -228,9 +228,7 @@ class PipelineVisualizer(BasePlugin):
     def visualize_results(self, results):
         if not results:
             return "\n"
-        markdown_content = "## Results\n\n"
-        markdown_content += "| Name | Description |\n"
-        markdown_content += "|------|-------------|\n"
+        markdown_content = self.table_with_header('## Results',['Name','Description'])
         for result in results:
             name = result.get("name", "Unnamed Result")
             description = result.get("description", "No description provided.")

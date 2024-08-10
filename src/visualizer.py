@@ -351,7 +351,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
     def visualize_task(self, metadata, spec):
         markdown_content = (
-            f"## Description\n{spec.get('description','No description')}\n"
+            f"## Description\n>{spec.get('description','No description')}\n"
         )
         markdown_content += self.visualize_parameters(spec.get("params", []))
         markdown_content += self.visualize_results(spec.get("results", []))
@@ -361,13 +361,4 @@ The `runAfter` parameter is optional and only needed if you want to specify task
         return markdown_content
 
     def update_nav(self, nav):
-        # Recursively update the nav entries
-        for idx, item in enumerate(nav):
-            if isinstance(item, dict):
-                for key, value in item.items():
-                    if isinstance(value, str) and value.endswith(".yaml"):
-                        nav[idx][key] = value.replace(".yaml", ".md")
-                    elif isinstance(value, list):
-                        self.update_nav(value)
-            elif isinstance(item, str) and item.endswith(".yaml"):
-                nav[idx] = item.replace(".yaml", ".md")
+        return nav

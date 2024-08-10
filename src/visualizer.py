@@ -87,7 +87,7 @@ class PipelineVisualizer(BasePlugin):
 
     def visualize_parameters(self, params):
         if not params:
-            return ""
+            return "## Parameters\n\nNo parameters\n"
         markdown_content = self.table_with_header("## Parameters", ['Name','Type','Description','Default'])
         for param in params:
             name = param.get("name", "Unnamed Parameter")

@@ -12,7 +12,9 @@ class PipelineVisualizer(BasePlugin):
         ("plantuml_graph_direction", config_options.Choice(["TB", "LR"], default="TB")),
         ("plantuml_theme", config_options.Type(str, default="_none_")),
         ("plantuml_graphs", config_options.Type(bool, default=True)),
-        ("auto_nav", config_options.Type(bool, default=False)),
+        ("nav_generation", config_options.Type(bool, default=True)),
+        ("nav_section_pipelines", config_options.Type(str, default="Pipelines")),
+        ("nav_section_tasks", config_options.Type(str, default="Tasks")),
     )
 
     def on_config(self, config):
@@ -23,7 +25,9 @@ class PipelineVisualizer(BasePlugin):
         )
         self.plantuml_theme = self.config["plantuml_theme"]
         self.plantum_graphs = self.config["plantuml_graphs"]
-        self.auto_nav = self.config["auto_nav"]
+        self.nav_generation = self.config["nav_generation"]
+        self.nav_section_pipelines = self.config["nav_section_pipelines"]
+        self.nav_section_tasks = self.config["nav_section_tasks"]
 
     def make_graph_from_tasks(self, tasks, final):
         markdown_content = f"```plantuml\n@startuml\n{self.plantuml_graph_direction}\n!theme {self.plantuml_theme}\n"
@@ -289,7 +293,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             else:
                 new_files.append(file)
 
-        if self.auto_nav:
+        if self.nav_generation:
             self.update_navigation(config["nav"], pipeline_versions, task_versions)
 
         return Files(new_files)
@@ -307,7 +311,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             file, config, self.generate_markdown_content(resources)
         )
 
-        if self.auto_nav:
+        if self.nav_generation:
             self.add_to_versions(
                 resources[0], new_file, kind, pipeline_versions, task_versions
             )
@@ -352,18 +356,36 @@ The `runAfter` parameter is optional and only needed if you want to specify task
         versions_dict[resource_name].append((resource_version, new_file.src_path))
 
     def update_navigation(self, nav, pipeline_versions, task_versions):
-        pipeline_index = self.ensure_nav_section(nav, "Pipelines")
-        task_index = self.ensure_nav_section(nav, "Tasks")
+        pipelines_section = self.find_or_create_section(nav, self.nav_section_pipelines)
+        tasks_section = self.find_or_create_section(nav, self.nav_section_tasks)
+    
+        self.add_to_nav(pipelines_section, pipeline_versions)
+        self.add_to_nav(tasks_section, task_versions)
 
-        self.add_to_nav(nav[pipeline_index]["Pipelines"], pipeline_versions)
-        self.add_to_nav(nav[task_index]["Tasks"], task_versions)
+    def find_section_recursive(self, nav_item, section_name):
+        if isinstance(nav_item, list):
+            for item in nav_item:
+                result = self.find_section_recursive(item, section_name)
+                if result is not None:
+                    return result
+        elif isinstance(nav_item, dict):
+            for key, value in nav_item.items():
+                if key == section_name and isinstance(value, list) and not value:
+                    return value
+                result = self.find_section_recursive(value, section_name)
+                if result is not None:
+                    return result
+        return None
 
-    def ensure_nav_section(self, nav, section_name):
-        index = next((i for i, item in enumerate(nav) if section_name in item), None)
-        if index is None:
-            nav.append({section_name: []})
-            return len(nav) - 1
-        return index
+    def find_or_create_section(self, nav, section_name):
+        result = self.find_section_recursive(nav, section_name)
+
+        if result is not None:
+            return result
+
+        new_section = {section_name: []}
+        nav.append(new_section)
+        return new_section[section_name]
 
     def add_to_nav(self, nav_list, versions_dict):
         def semantic_version_key(version_tuple):

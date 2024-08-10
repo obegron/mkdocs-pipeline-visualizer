@@ -14,10 +14,7 @@ class PipelineVisualizer(BasePlugin):
     )
 
     def on_config(self, config):
-        if "LR" == self.config["plantuml_graph_direction"]:
-            self.plantuml_graph_direction = "left to right direction"
-        else:
-            self.plantuml_graph_direction = "top to bottom direction"
+        self.plantuml_graph_direction = "left to right direction" if self.config["plantuml_graph_direction"] == "LR" else "top to bottom direction"
         self.plantuml_theme = self.config["plantuml_theme"]
         self.plantum_graphs = self.config["plantuml_graphs"]
 

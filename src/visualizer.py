@@ -385,27 +385,27 @@ The `runAfter` parameter is optional and only needed if you want to specify task
     def update_navigation(self, nav, pipeline_versions, task_versions):
         pipelines_section = self.find_or_create_section(nav, self.nav_section_pipelines)
         tasks_section = self.find_or_create_section(nav, self.nav_section_tasks)
-    
+
         self.add_to_nav(pipelines_section, pipeline_versions)
         self.add_to_nav(tasks_section, task_versions)
 
-    def find_section_recursive(self, nav_item, section_name):
-        if isinstance(nav_item, list):
-            for item in nav_item:
-                result = self.find_section_recursive(item, section_name)
-                if result is not None:
-                    return result
-        elif isinstance(nav_item, dict):
-            for key, value in nav_item.items():
-                if key == section_name and isinstance(value, list) and not value:
-                    return value
-                result = self.find_section_recursive(value, section_name)
-                if result is not None:
-                    return result
-        return None
-
     def find_or_create_section(self, nav, section_name):
-        result = self.find_section_recursive(nav, section_name)
+        def find_section_recursive(nav_item, section_name):
+            if isinstance(nav_item, list):
+                for item in nav_item:
+                    result = find_section_recursive(item, section_name)
+                    if result is not None:
+                        return result
+            elif isinstance(nav_item, dict):
+                for key, value in nav_item.items():
+                    if key == section_name and isinstance(value, list) and not value:
+                        return value
+                    result = find_section_recursive(value, section_name)
+                    if result is not None:
+                        return result
+            return None
+
+        result = find_section_recursive(nav, section_name)
 
         if result is not None:
             return result

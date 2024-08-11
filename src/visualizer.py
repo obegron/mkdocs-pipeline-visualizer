@@ -1,5 +1,6 @@
 import os
 import yaml
+import logging
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import File, Files
 from mkdocs.config import config_options
@@ -17,7 +18,11 @@ class PipelineVisualizer(BasePlugin):
         ("nav_section_tasks", config_options.Type(str, default="Tasks")),
         ("nav_pipeline_grouping_offset", config_options.Type(str, default=None)),
         ("nav_task_grouping_offset", config_options.Type(str, default=None)),
+        ("log_level", config_options.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], default="INFO")),
     )
+
+    def __init__(self):
+        self.logger = logging.getLogger("mkdocs.plugins.pipeline_visualizer")
 
     def on_config(self, config):
         self.plantuml_graph_direction = (
@@ -32,6 +37,15 @@ class PipelineVisualizer(BasePlugin):
         self.nav_section_tasks = self.config["nav_section_tasks"]
         self.nav_pipeline_grouping_offset = self.parse_grouping_offset(self.config["nav_pipeline_grouping_offset"])
         self.nav_task_grouping_offset = self.parse_grouping_offset(self.config["nav_task_grouping_offset"])        
+        self.logger.setLevel(getattr(logging, self.config["log_level"]))
+        
+        if not self.logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+        self.logger.propagate = False
+        self.logger.info("PipelineVisualizer plugin initialized with configuration: %s", self.config)
 
     def parse_grouping_offset(self, offset_str):
         if offset_str is None:
@@ -40,7 +54,7 @@ class PipelineVisualizer(BasePlugin):
             start, end = map(int, offset_str.split(':'))
             return (start, end)
         except ValueError:
-            print(f"Invalid grouping offset format: {offset_str}. Using default (None).")
+            self.logger.error(f"Invalid grouping offset format: {offset_str}. Using default (None).")
             return None
 
     def on_files(self, files, config):
@@ -49,28 +63,35 @@ class PipelineVisualizer(BasePlugin):
 
         for file in files:
             if file.src_path.endswith(".yaml"):
+                self.logger.debug("Processing YAML file: %s", file.src_path)
                 new_file = self.process_yaml_file(
                     file, config, pipeline_versions, task_versions
                 )
                 if new_file:
                     new_files.append(new_file)
+                    self.logger.debug("Created new Markdown file: %s", new_file.src_path)
             else:
                 new_files.append(file)
 
         if self.nav_generation:
+            self.logger.info("Updating navigation")
             self.update_navigation(config["nav"], pipeline_versions, task_versions)
 
+        self.logger.info("File processing complete.")
         return Files(new_files)
 
     def process_yaml_file(self, file, config, pipeline_versions, task_versions):
         resources = self.load_yaml(file.abs_src_path)
         if not resources:
+            self.logger.warning("Failed to load YAML file: %s", file.abs_src_path)
             return None
 
         kind = resources[0].get("kind", "").lower()
         if kind not in ["pipeline", "task"]:
+            self.logger.debug("Skipping file %s: not a pipeline or task", file.abs_src_path)
             return None
-
+        
+        self.logger.info("Processing %s: %s", kind, file.abs_src_path)
         new_file = self.create_markdown_file(
             file, config, self.generate_markdown_content(resources)
         )
@@ -87,7 +108,7 @@ class PipelineVisualizer(BasePlugin):
             with open(file_path, "r") as f:
                 return list(yaml.safe_load_all(f))
         except yaml.YAMLError as e:
-            print(f"Error parsing YAML file {file_path}: {e}")
+            self.logger.error("Error parsing YAML file %s: %s", file_path, e)
             return None
 
     def create_markdown_file(self, original_file, config, content):
@@ -96,7 +117,7 @@ class PipelineVisualizer(BasePlugin):
 
         with open(md_file_path, "w") as f:
             f.write(content)
-
+        self.logger.debug("Created Markdown file: %s", md_file_path)
         return File(
             original_file.src_path.replace(".yaml", ".md"),
             original_file.src_dir,
@@ -105,6 +126,7 @@ class PipelineVisualizer(BasePlugin):
         )
 
     def generate_markdown_content(self, resources):
+        self.logger.debug("Generating Markdown content for %d resources", len(resources))
         markdown_content = ""
         for resource in resources:
             kind = resource.get("kind", "")
@@ -128,6 +150,7 @@ class PipelineVisualizer(BasePlugin):
         return markdown_content
 
     def visualize_pipeline(self, spec):
+        self.logger.debug("Visualizing pipeline")
         markdown_content = ""
         tasks = spec.get("tasks", [])
         final = spec.get("finally", [])
@@ -142,6 +165,7 @@ class PipelineVisualizer(BasePlugin):
         return markdown_content
 
     def visualize_task(self, metadata, spec):
+        self.logger.debug("Visualizing task: %s", metadata.get("name", "Unnamed Task"))
         markdown_content = (
             f"## Description\n>{spec.get('description','No description')}\n"
         )
@@ -153,6 +177,7 @@ class PipelineVisualizer(BasePlugin):
         return markdown_content
 
     def make_graph_from_tasks(self, tasks, final):
+        self.logger.debug("Generating graph from %d tasks and %d final tasks", len(tasks), len(final))
         markdown_content = f"```plantuml\n@startuml\n{self.plantuml_graph_direction}\n!theme {self.plantuml_theme}\n"
 
         task_dependencies = {}
@@ -437,6 +462,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             "app.kubernetes.io/version", ""
         )
 
+        self.logger.debug("Adding %s '%s' (version: %s) to versions dict", kind, resource_name, resource_version)
         versions_dict = pipeline_versions if kind == "pipeline" else task_versions
 
         path_parts = new_file.src_path.split(os.sep)
@@ -445,10 +471,12 @@ The `runAfter` parameter is optional and only needed if you want to specify task
         if grouping_offset:
             start, end = grouping_offset
             group_path = os.sep.join(path_parts[start:end]) if end != 0 else os.sep.join(path_parts[start:])
+            self.logger.debug(f"Group path: {group_path}")
         else:
             group_path = ""
 
         if group_path not in versions_dict:
+            self.logger.debug(f"Creating new group: {group_path}")
             versions_dict[group_path] = {}
         if resource_name not in versions_dict[group_path]:
             versions_dict[group_path][resource_name] = []
@@ -456,6 +484,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
 
     def update_navigation(self, nav, pipeline_versions, task_versions):
+        self.logger.info("Updating navigation structure")
         pipelines_section = self.find_or_create_section(nav, self.nav_section_pipelines)
         tasks_section = self.find_or_create_section(nav, self.nav_section_tasks)
 
@@ -463,6 +492,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
         self.add_to_nav(tasks_section, task_versions)
 
     def find_or_create_section(self, nav, section_name):
+        self.logger.debug("Finding or creating navigation section: %s", section_name)
         def find_section_recursive(nav_item, section_name):
             if isinstance(nav_item, list):
                 for item in nav_item:
@@ -488,6 +518,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
         return new_section[section_name]
 
     def add_to_nav(self, nav_list, versions_dict):
+        self.logger.debug("Adding items to navigation")
         def semantic_version_key(version_tuple):
             ver, _ = version_tuple
             if not ver:
@@ -524,6 +555,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                         current_level.append({resource_name: resource_versions})
 
     def find_or_create_nested_dict(self, current_level, path_parts):
+        self.logger.debug("Finding or creating nested dict for path: %s", "/".join(path_parts))
         for part in path_parts:
             found = False
             for item in current_level:

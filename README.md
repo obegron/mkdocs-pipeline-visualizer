@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The mkdocs-pipeline-visualizer plugin automates the creation of up-to-date documentation for your Tekton pipelines and tasks, seamlessly integrating with GitOps workflows by leveraging the descriptions in your Tekton manifests.
+The mkdocs-pipeline-visualizer plugin automates the creation of up-to-date documentation for your Tekton pipelines and tasks.
 
 ## Installation
 
@@ -12,7 +12,7 @@ To install the mkdocs-pipeline-visualizer plugin, run the following command:
 $ pip install mkdocs-pipeline-visualizer
 ```
 
-## Example Configuration
+### Example Configuration
 
 Below is an example of how to configure mkdocs.yaml:
 

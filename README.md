@@ -2,13 +2,17 @@
 
 
 
-## Usage
+## Installation
+
+To install the mkdocs-pipeline-visualizer plugin, run the following command:
 
 ```bash
 $ pip install mkdocs-pipeline-visualizer
 ```
 
-Example of mkdocs.yaml
+## Example Configuration
+
+Below is an example of how to configure mkdocs.yaml:
 
 ```yaml
 site_name: Tekton
@@ -32,7 +36,7 @@ theme:
 
 ## Configuration
 
-Default it creates two sections in root Pipelines and Tasks, doc_dir should point to directory pipelines and tasks
+By default, the plugin creates two sections at the root level: Pipelines and Tasks. The doc_dir should point to the location of pipelines and tasks manifests.
 
 | Config parameter | Type | Description | Default | Implemented in |
 | ---------------- | ---- | ----------- | ------- | -------------- |
@@ -43,9 +47,11 @@ Default it creates two sections in root Pipelines and Tasks, doc_dir should poin
 | `nav_section_pipelines` | **[string]** | section name used for pipelines | `Pipelines` | 0.2.0 |
 | `nav_section_tasks` | **[string]** | section name used for tasks | `Tasks` | 0.2.0 |
 
-## HowTo
+## How To
 
-You can change location of documentation. Place a empty Section in any location of nav with the value of `nav_section_pipeline` or `nav_section_tasks`
+### Customizing Documentation Locations
+
+You can change the location of the documentation sections by placing an empty section in any location of the navigation (nav) and setting it to the value of `nav_section_pipelines` or `nav_section_tasks`:
 
 ```yaml
 site_name: Tekton
@@ -61,7 +67,9 @@ plugins:
   - pipeline-visualizer
 ```
 
-To change the menu section name and custom graph theme
+### Customizing Menu Section Names and Graph Themes
+
+To change the names of the menu sections and apply a custom graph theme, use the following configuration:
 
 ```yaml
 site_name: Tekton
@@ -83,37 +91,38 @@ plugins:
 ## Changelog
 
 # 0.2.0
-* generate nav tree by default
-* enable change change of section names and locations
+* Automatically generate navigation tree by default.
+* Enable customization of section names and locations.
+* Reintroduce versions on tasks and pipelines
 
 # 0.1.8
 * remove version of tasks until there is a nicer way to present it
 
 # 0.1.7
-* fix issue with \ in usage
-* correct example in readme
+* Fixed issue with backslashes (\) in usage examples.
+* Corrected example in the README.
 
 # 0.1.6
-* hide workspaces for tasks when none are used
-* show version of pipeline/task when available 
+* Hide workspaces for tasks when none are used
+* Show version of pipeline/task when available 
 
 # 0.1.5
-* remove extra --- after tasks
-* sample of how to use task in pipeline
-* make plantuml graphs optional using boolean `plantuml_graphs` default true
-* only process pipeline or tasks
+* Remove extra `---` after tasks
+* Added sample on how to use a task in a pipeline.
+* Made PlantUML graphs optional using the boolean plantuml_graphs, defaulting to True.
+* Process only pipelines or tasks.
 
 # 0.1.4
-* show all tasks in finally block
+* Display all tasks in the finally block.
 
 # 0.1.3
-* enable configuration of graph direction `plantuml_graph_direction` either TB or LR
-* configuration for plantuml theme `plantuml_theme` string (https://plantuml.com/theme)
+* Added configuration for graph direction (plantuml_graph_direction), allowing TB or LR.
+* Added configuration for PlantUML theme (`plantuml_theme`) as a string (e.g., `hacker`, `spacelab`).
 * display references to configMaps
 
 # 0.1.2
-* remove unused code
-* change how default and empty values are presented
+* Removed unused code.
+* Changed how default and empty values are presented.
 
 # 0.1.1
-* fix issue with multidocs
+* Fixed issue with multidoc yaml.

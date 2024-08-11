@@ -200,6 +200,28 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += "\n"
         return markdown_content
 
+    def get_script_type(self,script):
+
+        shebang_dict = {
+            'python': 'python',
+            'ruby': 'ruby',
+            'perl': 'perl',
+            'node': 'javascript',
+            'php': 'php',
+            'bash': 'bash',
+            'pwsh': 'powershell',
+            'lua': 'lua',
+        }
+        lines = script.splitlines()
+        if lines and lines[0].startswith('#!'):
+            first_line = lines[0]
+            for key in shebang_dict:
+                if key in first_line:
+                    return shebang_dict[key]
+
+        return 'shell'
+
+
     def visualize_steps(self, steps):
         markdown_content = "## Steps\n\n"
         for i, step in enumerate(steps, 1):
@@ -210,17 +232,22 @@ class PipelineVisualizer(BasePlugin):
             image = step.get("image", "Not specified")
             markdown_content += f"**Image:** `{image}`\n\n"
 
+            # Script
+            script = step.get("script","")
+            if script:
+                markdown_content += f"**Script:**\n\n```{self.get_script_type(script)}\n{script}\n```\n\n"
+
             # Command
             command = step.get("command", [])
             if command:
-                markdown_content += "**Command:**\n\n```\n"
+                markdown_content += "**Command:**\n\n```console\n"
                 markdown_content += " ".join(command)
                 markdown_content += "\n```\n\n"
 
             # Args
             args = step.get("args", [])
             if args:
-                markdown_content += "**Arguments:**\n\n```\n"
+                markdown_content += "**Arguments:**\n\n```shell\n"
                 markdown_content += " ".join(args)
                 markdown_content += "\n```\n\n"
 

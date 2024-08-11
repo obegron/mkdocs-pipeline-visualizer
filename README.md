@@ -8,7 +8,7 @@ The mkdocs-pipeline-visualizer plugin automates the creation of up-to-date docum
 
 To install the mkdocs-pipeline-visualizer plugin, run the following command:
 
-```bash
+```console
 $ pip install mkdocs-pipeline-visualizer
 ```
 
@@ -96,6 +96,8 @@ plugins:
 * Automatically generate navigation tree by default.
 * Enable customization of section names and locations.
 * Reintroduce versions on tasks and pipelines
+* Show script in task overview.
+* Syntax highlight for task steps
 
 # 0.1.8
 * remove version of tasks until there is a nicer way to present it

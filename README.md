@@ -30,6 +30,8 @@ theme:
     - navigation.sections
 ```
 
+## Configuration
+
 Default it creates two sections in root Pipelines and Tasks, doc_dir should point to directory pipelines and tasks
 
 | Config parameter | Type | Description | Default | Implemented in |

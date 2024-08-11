@@ -72,7 +72,7 @@ class PipelineVisualizer(BasePlugin):
 
     def format_value(self, value):
         if isinstance(value, list):
-            value = "<ul>" + "".join(f"<li>{v}</li>" for v in value) + "</ul>"
+            value = "<ul>" + "".join(f"<li>`{v}`</li>" for v in value) + "</ul>"
         elif isinstance(value, str) and "\n" in value:
             value = value.replace("\n", "<br>")
         return value
@@ -260,7 +260,7 @@ class PipelineVisualizer(BasePlugin):
             ],
         }
 
-        if not spec.get("workspaces", []):
+        if not usage_yaml.get("workspaces", []):
             usage_yaml.pop("workspaces")
 
         yaml_str = yaml.dump([usage_yaml], default_flow_style=False)
@@ -405,7 +405,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                 nav_list.append(
                     {
                         resource_name: [
-                            {v[0] if v[0] else "No version": v[1]}
+                            {f"{resource_name} v{v[0]}" if v[0] else "No version": v[1]}
                             for v in sorted_versions
                         ]
                     }

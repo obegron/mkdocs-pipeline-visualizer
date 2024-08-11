@@ -15,6 +15,8 @@ class PipelineVisualizer(BasePlugin):
         ("nav_generation", config_options.Type(bool, default=True)),
         ("nav_section_pipelines", config_options.Type(str, default="Pipelines")),
         ("nav_section_tasks", config_options.Type(str, default="Tasks")),
+        ("nav_pipeline_grouping_offset", config_options.Type(str, default=None)),
+        ("nav_task_grouping_offset", config_options.Type(str, default=None)),
     )
 
     def on_config(self, config):
@@ -28,6 +30,18 @@ class PipelineVisualizer(BasePlugin):
         self.nav_generation = self.config["nav_generation"]
         self.nav_section_pipelines = self.config["nav_section_pipelines"]
         self.nav_section_tasks = self.config["nav_section_tasks"]
+        self.nav_pipeline_grouping_offset = self.parse_grouping_offset(self.config["nav_pipeline_grouping_offset"])
+        self.nav_task_grouping_offset = self.parse_grouping_offset(self.config["nav_task_grouping_offset"])        
+
+    def parse_grouping_offset(self, offset_str):
+        if offset_str is None:
+            return None
+        try:
+            start, end = map(int, offset_str.split(':'))
+            return (start, end)
+        except ValueError:
+            print(f"Invalid grouping offset format: {offset_str}. Using default (None).")
+            return None
 
     def on_files(self, files, config):
         new_files = []
@@ -425,9 +439,21 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
         versions_dict = pipeline_versions if kind == "pipeline" else task_versions
 
-        if resource_name not in versions_dict:
-            versions_dict[resource_name] = []
-        versions_dict[resource_name].append((resource_version, new_file.src_path))
+        path_parts = new_file.src_path.split(os.sep)
+        grouping_offset = self.nav_pipeline_grouping_offset if kind == "pipeline" else self.nav_task_grouping_offset
+        
+        if grouping_offset:
+            start, end = grouping_offset
+            group_path = os.sep.join(path_parts[start:end]) if end != 0 else os.sep.join(path_parts[start:])
+        else:
+            group_path = ""
+
+        if group_path not in versions_dict:
+            versions_dict[group_path] = {}
+        if resource_name not in versions_dict[group_path]:
+            versions_dict[group_path][resource_name] = []
+        versions_dict[group_path][resource_name].append((resource_version, new_file.src_path))
+
 
     def update_navigation(self, nav, pipeline_versions, task_versions):
         pipelines_section = self.find_or_create_section(nav, self.nav_section_pipelines)
@@ -471,16 +497,42 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             except version.InvalidVersion:
                 return version.parse("0.0.0")
 
-        for resource_name, versions in versions_dict.items():
-            sorted_versions = sorted(versions, key=semantic_version_key, reverse=True)
-            if len(sorted_versions) == 1:
-                nav_list.append({resource_name: sorted_versions[0][1]})
+        for group_path, resources in versions_dict.items():
+            if group_path:
+                current_level = self.find_or_create_nested_dict(nav_list, group_path.split(os.sep))
             else:
-                nav_list.append(
-                    {
-                        resource_name: [
-                            {f"{resource_name} v{v[0]}" if v[0] else "No version": v[1]}
-                            for v in sorted_versions
-                        ]
-                    }
-                )
+                current_level = nav_list
+
+            for resource_name, versions in resources.items():
+                sorted_versions = sorted(versions, key=semantic_version_key, reverse=True)
+                if len(sorted_versions) == 1:
+                    current_level.append({resource_name: sorted_versions[0][1]})
+                else:
+                    resource_versions = []
+                    for v, path in sorted_versions:
+                        version_name = f"{resource_name} v{v}" if v else resource_name
+                        resource_versions.append({version_name: path})
+                    
+                    # Check if there's already an entry for this resource
+                    existing_entry = next((item for item in current_level if isinstance(item, dict) and resource_name in item), None)
+                    
+                    if existing_entry:
+                        # If entry exists, append new versions
+                        existing_entry[resource_name].extend(resource_versions)
+                    else:
+                        # If no entry exists, create a new one
+                        current_level.append({resource_name: resource_versions})
+
+    def find_or_create_nested_dict(self, current_level, path_parts):
+        for part in path_parts:
+            found = False
+            for item in current_level:
+                if isinstance(item, dict) and part in item:
+                    current_level = item[part]
+                    found = True
+                    break
+            if not found:
+                new_dict = {part: []}
+                current_level.append(new_dict)
+                current_level = new_dict[part]
+        return current_level

@@ -18,7 +18,12 @@ class PipelineVisualizer(BasePlugin):
         ("nav_section_tasks", config_options.Type(str, default="Tasks")),
         ("nav_pipeline_grouping_offset", config_options.Type(str, default=None)),
         ("nav_task_grouping_offset", config_options.Type(str, default=None)),
-        ("log_level", config_options.Choice(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], default="INFO")),
+        (
+            "log_level",
+            config_options.Choice(
+                ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], default="INFO"
+            ),
+        ),
     )
 
     def __init__(self):
@@ -35,26 +40,36 @@ class PipelineVisualizer(BasePlugin):
         self.nav_generation = self.config["nav_generation"]
         self.nav_section_pipelines = self.config["nav_section_pipelines"]
         self.nav_section_tasks = self.config["nav_section_tasks"]
-        self.nav_pipeline_grouping_offset = self.parse_grouping_offset(self.config["nav_pipeline_grouping_offset"])
-        self.nav_task_grouping_offset = self.parse_grouping_offset(self.config["nav_task_grouping_offset"])        
+        self.nav_pipeline_grouping_offset = self.parse_grouping_offset(
+            self.config["nav_pipeline_grouping_offset"]
+        )
+        self.nav_task_grouping_offset = self.parse_grouping_offset(
+            self.config["nav_task_grouping_offset"]
+        )
         self.logger.setLevel(getattr(logging, self.config["log_level"]))
-        
+
         if not self.logger.handlers:
             handler = logging.StreamHandler()
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
         self.logger.propagate = False
-        self.logger.info("PipelineVisualizer plugin initialized with configuration: %s", self.config)
+        self.logger.info(
+            "PipelineVisualizer plugin initialized with configuration: %s", self.config
+        )
 
     def parse_grouping_offset(self, offset_str):
         if offset_str is None:
             return None
         try:
-            start, end = map(int, offset_str.split(':'))
+            start, end = map(int, offset_str.split(":"))
             return (start, end)
         except ValueError:
-            self.logger.error(f"Invalid grouping offset format: {offset_str}. Using default (None).")
+            self.logger.error(
+                f"Invalid grouping offset format: {offset_str}. Using default (None)."
+            )
             return None
 
     def on_files(self, files, config):
@@ -69,7 +84,9 @@ class PipelineVisualizer(BasePlugin):
                 )
                 if new_file:
                     new_files.append(new_file)
-                    self.logger.debug("Created new Markdown file: %s", new_file.src_path)
+                    self.logger.debug(
+                        "Created new Markdown file: %s", new_file.src_path
+                    )
             else:
                 new_files.append(file)
 
@@ -88,9 +105,11 @@ class PipelineVisualizer(BasePlugin):
 
         kind = resources[0].get("kind", "").lower()
         if kind not in ["pipeline", "task"]:
-            self.logger.debug("Skipping file %s: not a pipeline or task", file.abs_src_path)
+            self.logger.debug(
+                "Skipping file %s: not a pipeline or task", file.abs_src_path
+            )
             return None
-        
+
         self.logger.info("Processing %s: %s", kind, file.abs_src_path)
         new_file = self.create_markdown_file(
             file, config, self.generate_markdown_content(resources)
@@ -126,7 +145,9 @@ class PipelineVisualizer(BasePlugin):
         )
 
     def generate_markdown_content(self, resources):
-        self.logger.debug("Generating Markdown content for %d resources", len(resources))
+        self.logger.debug(
+            "Generating Markdown content for %d resources", len(resources)
+        )
         markdown_content = ""
         for resource in resources:
             kind = resource.get("kind", "")
@@ -177,7 +198,9 @@ class PipelineVisualizer(BasePlugin):
         return markdown_content
 
     def make_graph_from_tasks(self, tasks, final):
-        self.logger.debug("Generating graph from %d tasks and %d final tasks", len(tasks), len(final))
+        self.logger.debug(
+            "Generating graph from %d tasks and %d final tasks", len(tasks), len(final)
+        )
         markdown_content = f"```plantuml\n@startuml\n{self.plantuml_graph_direction}\n!theme {self.plantuml_theme}\n"
 
         task_dependencies = {}
@@ -462,15 +485,28 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             "app.kubernetes.io/version", ""
         )
 
-        self.logger.debug("Adding %s '%s' (version: %s) to versions dict", kind, resource_name, resource_version)
+        self.logger.debug(
+            "Adding %s '%s' (version: %s) to versions dict",
+            kind,
+            resource_name,
+            resource_version,
+        )
         versions_dict = pipeline_versions if kind == "pipeline" else task_versions
 
         path_parts = new_file.src_path.split(os.sep)
-        grouping_offset = self.nav_pipeline_grouping_offset if kind == "pipeline" else self.nav_task_grouping_offset
-        
+        grouping_offset = (
+            self.nav_pipeline_grouping_offset
+            if kind == "pipeline"
+            else self.nav_task_grouping_offset
+        )
+
         if grouping_offset:
             start, end = grouping_offset
-            group_path = os.sep.join(path_parts[start:end]) if end != 0 else os.sep.join(path_parts[start:])
+            group_path = (
+                os.sep.join(path_parts[start:end])
+                if end != 0
+                else os.sep.join(path_parts[start:])
+            )
             self.logger.debug(f"Group path: {group_path}")
         else:
             group_path = ""
@@ -480,8 +516,9 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             versions_dict[group_path] = {}
         if resource_name not in versions_dict[group_path]:
             versions_dict[group_path][resource_name] = []
-        versions_dict[group_path][resource_name].append((resource_version, new_file.src_path))
-
+        versions_dict[group_path][resource_name].append(
+            (resource_version, new_file.src_path)
+        )
 
     def update_navigation(self, nav, pipeline_versions, task_versions):
         self.logger.info("Updating navigation structure")
@@ -493,6 +530,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
     def find_or_create_section(self, nav, section_name):
         self.logger.debug("Finding or creating navigation section: %s", section_name)
+
         def find_section_recursive(nav_item, section_name):
             if isinstance(nav_item, list):
                 for item in nav_item:
@@ -519,6 +557,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
     def add_to_nav(self, nav_list, versions_dict):
         self.logger.debug("Adding items to navigation")
+
         def semantic_version_key(version_tuple):
             ver, _ = version_tuple
             if not ver:
@@ -530,12 +569,16 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
         for group_path, resources in versions_dict.items():
             if group_path:
-                current_level = self.find_or_create_nested_dict(nav_list, group_path.split(os.sep))
+                current_level = self.find_or_create_nested_dict(
+                    nav_list, group_path.split(os.sep)
+                )
             else:
                 current_level = nav_list
 
             for resource_name, versions in resources.items():
-                sorted_versions = sorted(versions, key=semantic_version_key, reverse=True)
+                sorted_versions = sorted(
+                    versions, key=semantic_version_key, reverse=True
+                )
                 if len(sorted_versions) == 1:
                     current_level.append({resource_name: sorted_versions[0][1]})
                 else:
@@ -543,10 +586,17 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                     for v, path in sorted_versions:
                         version_name = f"{resource_name} v{v}" if v else resource_name
                         resource_versions.append({version_name: path})
-                    
+
                     # Check if there's already an entry for this resource
-                    existing_entry = next((item for item in current_level if isinstance(item, dict) and resource_name in item), None)
-                    
+                    existing_entry = next(
+                        (
+                            item
+                            for item in current_level
+                            if isinstance(item, dict) and resource_name in item
+                        ),
+                        None,
+                    )
+
                     if existing_entry:
                         # If entry exists, append new versions
                         existing_entry[resource_name].extend(resource_versions)
@@ -555,7 +605,9 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                         current_level.append({resource_name: resource_versions})
 
     def find_or_create_nested_dict(self, current_level, path_parts):
-        self.logger.debug("Finding or creating nested dict for path: %s", "/".join(path_parts))
+        self.logger.debug(
+            "Finding or creating nested dict for path: %s", "/".join(path_parts)
+        )
         for part in path_parts:
             found = False
             for item in current_level:

@@ -48,6 +48,31 @@ By default, the plugin creates two sections at the root level: Pipelines and Tas
 | `nav_generation` | **[bool]** | automatically generate navigation tree | `True` | 0.2.0 |
 | `nav_section_pipelines` | **[string]** | section name used for pipelines | `Pipelines` | 0.2.0 |
 | `nav_section_tasks` | **[string]** | section name used for tasks | `Tasks` | 0.2.0 |
+| `nav_pipeline_grouping_offset` | **[string]** | Controls how pipeline file paths are represented in the navigation structure. It's a string in the format "start:end", where "start" is the index of the first directory to include, and "end" is the index of the last directory to exclude. For example, "1:-1" means: start at the second directory (index 1) and exclude the last directory. This allows you to omit certain levels of your directory structure from the navigation. | `None` | 0.2.0 |
+| `nav_tasks_grouping_offset` | **[string]** | same as `nav_pipeline_grouping_offset` but for tasks | `None` | 0.2.0 |
+| `log_level` | **[string]** | `DEBUG|INFO|WARNING|ERROR|CRITICAL` | `INFO` | 0.2.0 |
+
+### Example for `nav_pipeline_grouping_offset`
+
+Let's say you have a pipeline file located at:
+
+```
+./pipelines/project-a/deployment/my-pipeline.yaml
+```
+
+Here's how different `nav_pipeline_grouping_offset` values would affect the navigation structure:
+
+- `"1:-1"`: Skips the first directory and excludes the last one.
+  - Result: `Pipelines > project-a > deployment >  my-pipeline`
+
+- `"1:-2"`: Skips the first directory and excludes the last two.
+  - Result: `Pipelines > project-a >  my-pipeline`
+
+- `None` (default): Single level all pipelines in `nav_section_pipelines`
+  - Result: `Pipelines >  my-pipeline`
+
+This parameter allows you to customize how deeply nested your pipeline files appear in the navigation.
+
 
 ## How To
 

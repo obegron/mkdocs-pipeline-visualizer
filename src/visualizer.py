@@ -30,19 +30,6 @@ class PipelineVisualizer(BasePlugin):
         self.logger = logging.getLogger("mkdocs.plugins.pipeline_visualizer")
 
     def on_config(self, config):
-        self.plantuml_graph_direction = (
-            "left to right direction"
-            if self.config["plantuml_graph_direction"] == "LR"
-            else "top to bottom direction"
-        )
-        self.plantuml_theme = self.config["plantuml_theme"]
-        self.plantum_graphs = self.config["plantuml_graphs"]
-        self.nav_generation = self.config["nav_generation"]
-        self.nav_section_pipelines = self.config["nav_section_pipelines"]
-        self.nav_section_tasks = self.config["nav_section_tasks"]
-        self.nav_pipeline_grouping_offset = self.parse_grouping_offset(
-            self.config["nav_pipeline_grouping_offset"]
-        )
         self.nav_task_grouping_offset = self.parse_grouping_offset(
             self.config["nav_task_grouping_offset"]
         )
@@ -56,6 +43,20 @@ class PipelineVisualizer(BasePlugin):
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
         self.logger.propagate = False
+
+        self.plantuml_graph_direction = (
+            "left to right direction"
+            if self.config["plantuml_graph_direction"] == "LR"
+            else "top to bottom direction"
+        )
+        self.plantuml_theme = self.config["plantuml_theme"]
+        self.plantum_graphs = self.config["plantuml_graphs"]
+        self.nav_generation = self.config["nav_generation"]
+        self.nav_section_pipelines = self.config["nav_section_pipelines"]
+        self.nav_section_tasks = self.config["nav_section_tasks"]
+        self.nav_pipeline_grouping_offset = self.parse_grouping_offset(
+            self.config["nav_pipeline_grouping_offset"]
+        )
         self.logger.info(
             "PipelineVisualizer plugin initialized with configuration: %s", self.config
         )
@@ -65,6 +66,12 @@ class PipelineVisualizer(BasePlugin):
             return None
         try:
             start, end = map(int, offset_str.split(":"))
+            if end > -1:
+                self.logger.error("invalid value %s, start:end end must be -1 or less, Using default (None)",offset_str)
+                return None
+            if start < 1:
+                self.logger.error("invalid value %s, start:end start must be atleast 1, Using default (None)",offset_str)
+                return None
             return (start, end)
         except ValueError:
             self.logger.error(

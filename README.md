@@ -1,6 +1,4 @@
-# mkdocs-mkdocs-pipeline-visualizer
-
-
+# mkdocs-pipeline-visualizer
 
 ## Installation
 

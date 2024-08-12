@@ -118,41 +118,52 @@ plugins:
 
 ## Changelog
 
-# 0.2.0
-* Automatically generate navigation tree by default.
-* Enable customization of section names and locations.
-* Reintroduce versions on tasks and pipelines
-* Show script in task overview.
-* Syntax highlight for task steps
+### 0.2.0
 
-# 0.1.8
+#### Added
+
+* Navigation generation feature with customizable sections for pipelines and tasks
+* Support for grouping pipelines and tasks in the navigation
+* Improved logging with configurable log levels
+* Version-based sorting for resources in navigation
+
+#### Changed
+
+* Improved visualization of tasks, parameters, and workspaces
+* Better handling of different script types in task steps
+
+#### Fixed
+
+* Various bug fixes and code structure improvements
+
+### 0.1.8
 * remove version of tasks until there is a nicer way to present it
 
-# 0.1.7
+### 0.1.7
 * Fixed issue with backslashes (\) in usage examples.
 * Corrected example in the README.
 
-# 0.1.6
+### 0.1.6
 * Hide workspaces for tasks when none are used
 * Show version of pipeline/task when available 
 
-# 0.1.5
+### 0.1.5
 * Remove extra `---` after tasks
 * Added sample on how to use a task in a pipeline.
 * Made PlantUML graphs optional using the boolean plantuml_graphs, defaulting to True.
 * Process only pipelines or tasks.
 
-# 0.1.4
+### 0.1.4
 * Display all tasks in the finally block.
 
-# 0.1.3
+### 0.1.3
 * Added configuration for graph direction (plantuml_graph_direction), allowing TB or LR.
 * Added configuration for PlantUML theme (`plantuml_theme`) as a string (e.g., `hacker`, `spacelab`).
 * display references to configMaps
 
-# 0.1.2
+### 0.1.2
 * Removed unused code.
 * Changed how default and empty values are presented.
 
-# 0.1.1
+### 0.1.1
 * Fixed issue with multidoc yaml.

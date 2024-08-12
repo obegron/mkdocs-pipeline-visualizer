@@ -50,7 +50,7 @@ class PipelineVisualizer(BasePlugin):
             else "top to bottom direction"
         )
         self.plantuml_theme = self.config["plantuml_theme"]
-        self.plantum_graphs = self.config["plantuml_graphs"]
+        self.plantuml_graphs = self.config["plantuml_graphs"]
         self.nav_generation = self.config["nav_generation"]
         self.nav_section_pipelines = self.config["nav_section_pipelines"]
         self.nav_section_tasks = self.config["nav_section_tasks"]
@@ -188,7 +188,7 @@ class PipelineVisualizer(BasePlugin):
         markdown_content = ""
         tasks = spec.get("tasks", [])
         final = spec.get("finally", [])
-        if self.plantum_graphs:
+        if self.plantuml_graphs:
             markdown_content += self.make_graph_from_tasks(tasks, final)
         markdown_content += self.visualize_parameters(spec.get("params", []))
         markdown_content += self.visualize_workspaces(spec.get("workspaces", []))

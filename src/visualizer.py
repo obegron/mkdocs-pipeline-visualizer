@@ -524,7 +524,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             group_path = ""
 
         if group_path not in versions_dict:
-            self.logger.debug(f"Creating new group: {group_path}")
+            self.logger.debug(f"Creating new group: \"{group_path}\"")
             versions_dict[group_path] = {}
         if resource_name not in versions_dict[group_path]:
             versions_dict[group_path][resource_name] = []

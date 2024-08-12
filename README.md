@@ -40,7 +40,7 @@ theme:
 
 By default, the plugin creates two sections at the root level: Pipelines and Tasks. The doc_dir should point to the location of pipelines and tasks manifests.
 
-| Config parameter | Type | Description | Default | Implemented in |
+| Config parameter | Type | Description | Default | Since |
 | ---------------- | ---- | ----------- | ------- | -------------- |
 | `plantuml_graphs`| **[bool]** | Controls if pipeline graph should be visible | `True` | 0.1.5 |
 | `plantuml_graph_direction` | **[string]** | TB(top to bottom) or LR(left to right) | `TB` | 0.1.3 |

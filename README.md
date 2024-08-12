@@ -49,7 +49,7 @@ By default, the plugin creates two sections at the root level: Pipelines and Tas
 | `nav_section_pipelines` | **[string]** | section name used for pipelines | `Pipelines` | 0.2.0 |
 | `nav_section_tasks` | **[string]** | section name used for tasks | `Tasks` | 0.2.0 |
 | `nav_pipeline_grouping_offset` | **[string]** | Controls how pipeline file paths are represented in the navigation structure. The format is "start:end", where: "start" is the index of the first directory to include "end" is the index of the last directory to include (use negative numbers to count from the end) | `None` | 0.2.0 |
-| `nav_tasks_grouping_offset` | **[string]** | same as `nav_pipeline_grouping_offset` but for tasks | `None` | 0.2.0 |
+| `nav_task_grouping_offset` | **[string]** | same as `nav_pipeline_grouping_offset` but for tasks | `None` | 0.2.0 |
 | `log_level` | **[string]** | `DEBUG INFO WARNING ERROR CRITICAL` | `INFO` | 0.2.0 |
 
 ### Example for `nav_pipeline_grouping_offset`

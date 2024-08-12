@@ -66,11 +66,17 @@ class PipelineVisualizer(BasePlugin):
             return None
         try:
             start, end = map(int, offset_str.split(":"))
-            if end > -1:
-                self.logger.error("invalid value %s, start:end end must be -1 or less, Using default (None)",offset_str)
+            if end > 0:
+                self.logger.error(
+                    "invalid value %s, start:end end must be 0 or less, Using default (None)",
+                    offset_str,
+                )
                 return None
-            if start < 1:
-                self.logger.error("invalid value %s, start:end start must be atleast 1, Using default (None)",offset_str)
+            if start < 0:
+                self.logger.error(
+                    "invalid value %s, start:end start must be atleast 0, Using default (None)",
+                    offset_str,
+                )
                 return None
             return (start, end)
         except ValueError:
@@ -509,11 +515,10 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
         if grouping_offset:
             start, end = grouping_offset
-            group_path = (
-                os.sep.join(path_parts[start:end])
-                if end != 0
-                else os.sep.join(path_parts[start:])
-            )
+            # Adjust end to handle negative indices correctly
+            end = len(path_parts) + end if end < 0 else end
+            # Exclude the file name from grouping
+            group_path = os.sep.join(path_parts[start : end - 1])
             self.logger.debug(f"Group path: {group_path}")
         else:
             group_path = ""

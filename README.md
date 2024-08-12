@@ -48,7 +48,7 @@ By default, the plugin creates two sections at the root level: Pipelines and Tas
 | `nav_generation` | **[bool]** | automatically generate navigation tree | `True` | 0.2.0 |
 | `nav_section_pipelines` | **[string]** | section name used for pipelines | `Pipelines` | 0.2.0 |
 | `nav_section_tasks` | **[string]** | section name used for tasks | `Tasks` | 0.2.0 |
-| `nav_pipeline_grouping_offset` | **[string]** | Controls how pipeline file paths are represented in the navigation structure. It's a string in the format "start:end", where "start" is the index of the first directory to include, and "end" is the index of the last directory to exclude. For example, "1:-1" means: start at the second directory (index 1) and exclude the last directory. This allows you to include certain levels of your directory structure to the navigation. | `None` | 0.2.0 |
+| `nav_pipeline_grouping_offset` | **[string]** | Controls how pipeline file paths are represented in the navigation structure. The format is "start:end", where: "start" is the index of the first directory to include "end" is the index of the last directory to include (use negative numbers to count from the end) | `None` | 0.2.0 |
 | `nav_tasks_grouping_offset` | **[string]** | same as `nav_pipeline_grouping_offset` but for tasks | `None` | 0.2.0 |
 | `log_level` | **[string]** | `DEBUG INFO WARNING ERROR CRITICAL` | `INFO` | 0.2.0 |
 
@@ -62,16 +62,17 @@ Let's say you have a pipeline file located at:
 
 Here's how different `nav_pipeline_grouping_offset` values would affect the navigation structure:
 
-- `"1:-1"`: Skips the first directory and excludes the last one.
-  - Result: `Pipelines > project-a > deployment >  my-pipeline`
+- `"0:-1"`: Includes all directories except the last one (which is the file name).
+  - Result: `Pipelines > pipelines > project-a > deployment > my-pipeline`
 
-- `"1:-2"`: Skips the first directory and excludes the last two.
-  - Result: `Pipelines > project-a >  my-pipeline`
+- `"1:-1"`: Skips the first directory and includes all others except the last one.
+  - Result: `Pipelines > project-a > deployment > my-pipeline`
 
-- `None` (default): Single level all pipelines in `nav_section_pipelines`
-  - Result: `Pipelines >  my-pipeline`
+- `"1:-2"`: Skips the first directory and excludes the last two (the last directory and the file name).
+  - Result: `Pipelines > project-a > my-pipeline`
 
-This parameter allows you to customize how deeply nested your pipeline files appear in the navigation.
+- `None` (default): All pipelines are placed directly under the `nav_section_pipelines` section.
+  - Result: `Pipelines > my-pipeline`
 
 
 ## How To

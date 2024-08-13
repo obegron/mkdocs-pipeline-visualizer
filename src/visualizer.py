@@ -206,6 +206,7 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += self.visualize_parameters(spec.get("params", []))
         markdown_content += self.visualize_results(spec.get("results", []))
         markdown_content += self.visualize_workspaces(spec.get("workspaces", []))
+        markdown_content += self.visualize_step_template(spec.get("stepTemplate",[]))
         markdown_content += self.visualize_steps(spec.get("steps", []))
         markdown_content += self.visualize_usage(metadata, spec)
         return markdown_content
@@ -254,6 +255,36 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += "@enduml\n```\n"
         return markdown_content
 
+    def visualize_step_template(self, template):
+        if not template:
+            return ""
+        markdown_content = "## Step template\n\n"
+
+        if template.get('env',[]):
+            markdown_content += self.table_with_header(
+                "**Environment Variables:**", ["Name", "Value"]
+            )
+            for var in template.get('env',[]):
+                name = var.get("name", "Unnamed Variable")
+                value = var.get("value", "")
+                if value:
+                    markdown_content += f"| `{name}` | `{value}` |\n"
+
+        if template.get('envFrom',[]):
+            markdown_content += self.table_with_header(
+                "**Environment from config:**", ["Name", "Type"]
+            )
+            for value_from in template.get('envFrom'):
+                if value_from.get("configMapRef",{}):
+                    cm_name = value_from.get("configMapRef").get("name", "Not specified")
+                    markdown_content += f"| `{cm_name}` | ConfigMap |\n"
+                if value_from.get("secretRef",{}):
+                    secret_name = value_from.get("secretRef").get("name", "Not specified")
+                    markdown_content += f"| `{secret_name}` | Secret |\n"
+
+        markdown_content += "\n"
+        return markdown_content        
+    
     def visualize_parameters(self, params):
         if not params:
             return "## Parameters\n\nNo parameters\n"

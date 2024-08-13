@@ -104,7 +104,6 @@ class PipelineVisualizer(BasePlugin):
                 new_files.append(file)
 
         if self.nav_generation:
-            self.logger.info("Updating navigation")
             self.update_navigation(config["nav"], pipeline_versions, task_versions)
 
         self.logger.info("File processing complete.")

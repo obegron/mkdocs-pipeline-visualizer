@@ -333,6 +333,7 @@ class PipelineVisualizer(BasePlugin):
                 for dep in run_after:
                     markdown_content += f"- `{dep}`\n"
                 markdown_content += "\n"
+            markdown_content += self.visualize_common_elements(task)
 
             # Parameters
             params = task.get("params", [])
@@ -372,7 +373,7 @@ class PipelineVisualizer(BasePlugin):
         for i, step in enumerate(steps, 1):
             step_name = step.get("name", f"Step {i}")
             markdown_content += f"### {step_name}\n\n"
-
+            markdown_content += self.visualize_common_elements(step)
             # Image
             image = step.get("image", "Not specified")
             markdown_content += f"**Image:** `{image}`\n\n"
@@ -398,6 +399,32 @@ class PipelineVisualizer(BasePlugin):
 
             # Environment Variables
             markdown_content += self.visualize_environment(step.get("env", []))
+        return markdown_content
+    
+    def visualize_common_elements(self, spec):
+        markdown_content = ""
+    
+        # Timeout
+        timeout = spec.get("timeout")
+        if timeout:
+            markdown_content += f"**Timeout:** `{timeout}`\n\n"
+    
+        # When
+        when = spec.get("when", [])
+        if when:
+            markdown_content += "**When Expressions:**\n\n"
+            for condition in when:
+                input = condition.get("input", "")
+                operator = condition.get("operator", "")
+                values = condition.get("values", [])
+                markdown_content += f"- Input: `{input}`, Operator: `{operator}`, Values: `{', '.join(values)}`\n"
+            markdown_content += "\n"
+    
+        # Retries
+        retries = spec.get("retries")
+        if retries:
+            markdown_content += f"**Retries:** `{retries}`\n\n"
+        
         return markdown_content
 
     def visualize_results(self, results):

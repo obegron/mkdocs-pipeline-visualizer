@@ -118,6 +118,16 @@ plugins:
 
 ## Changelog
 
+### 0.2.1
+
+#### Added
+* Example in `example/`
+* Visualization for step templates in tasks
+
+#### Fixed
+* Corrected typo in `plantuml_graphs` attribute name (was `plantum_graphs`)
+* Corrected typo in `nav_tasks_grouping_offset` attribute name (was `nav_task_grouping_offset`)
+
 ### 0.2.0
 
 #### Added

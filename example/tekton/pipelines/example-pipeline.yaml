@@ -1,0 +1,62 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  labels:
+    app.kubernetes.io/version: "0.2"
+  name: example-pipeline
+spec:
+  params:
+    - name: parameter1
+      description: source repo 1
+  workspaces:
+    - name: shared-workspace
+  tasks:
+    - name: fetch-repository
+      taskRef:
+        name: example-tasks
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+      params:
+        - name: parameter1
+          value: $(params.parameter1)
+    - name: run-lint
+      taskRef:
+        name: example-tasks
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      runAfter:
+        - fetch-repository
+    - name: build-test
+      taskRef:
+        name: example-tasks
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      runAfter:
+        - run-lint
+    - name: unit-test
+      taskRef:
+        name: example-tasks
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+      runAfter:
+        - run-lint
+    - name: build-push-image
+      taskRef:
+        name: example-tasks
+      runAfter:
+        - unit-test
+        - build-test
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+  finally:
+    - name: done
+      taskRef:
+        name: example-tasks
+      workspaces:
+        - name: output
+          workspace: shared-workspace

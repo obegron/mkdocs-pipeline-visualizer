@@ -1,0 +1,43 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: example-tasks
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/categories: example
+    tekton.dev/tags: example
+    tekton.dev/platforms: "linux/s390x"
+spec:
+  description: |
+    An example tasks with some information
+  results:
+    - name: MY_RESULT
+      description: some result of the task
+  params:
+  - name: parameter1
+    description: description of parameter 1
+    type: string
+    default: "param1"
+  - name: options
+    description: options for an_command
+    type: array
+    default: []
+  - name: task-image
+    description: option task image
+    type: string
+    default: "cgr.dev/chainguard/busybox@sha256:19f02276bf8dbdd62f069b922f10c65262cc34b710eea26ff928129a736be791"
+  workspaces:
+    - name: source
+      description: sources
+  steps:
+  - name: an_command
+    image: "$(params.task-image)"
+    command: [an_command]
+    args: ["$(params.options[*])", "$(params.parameter1)"]
+  - name: run-script
+    image: "$(params.task-image)"
+    script: |
+      echo "Starting"
+      echo "Some result" > $(results.MY_RESULT.path)
+      echo "Done"

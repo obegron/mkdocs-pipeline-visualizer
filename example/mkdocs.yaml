@@ -1,0 +1,39 @@
+site_name: Example
+site_description: Tekton
+docs_dir: ./tekton
+
+nav:
+  - Home: index.md
+  - Tekton:
+    - "🚀 Pipelines": []  
+    - "🛠️ Tasks": []
+
+plugins:
+  - pipeline-visualizer:
+      plantuml_theme: hacker
+      nav_section_tasks: "🛠️ Tasks"
+      nav_section_pipelines: "🚀 Pipelines"
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.highlight:
+      use_pygments: true
+      pygments_lang_class: true
+      line_spans: __span
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - plantuml_markdown:
+      server: http://www.plantuml.com/plantuml
+      format: svg
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - content.code.copy    

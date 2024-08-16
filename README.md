@@ -4,7 +4,7 @@
 
 > The mkdocs-pipeline-visualizer plugin automates the creation of up-to-date documentation for your Tekton pipelines and tasks.
 
-![Screenshot](https://raw.githubusercontent.com/obegron/mkdocs-pipeline-visualizer/main/example/tekton/pipeline-view.png)
+![Visualization of a Tekton pipeline using mkdocs-pipeline-visualizer plugin](https://raw.githubusercontent.com/obegron/mkdocs-pipeline-visualizer/main/example/tekton/pipeline-view.png)
 
 ## Installation
 
@@ -40,7 +40,7 @@ theme:
 
 ## Configuration
 
-By default, the plugin creates two sections at the root level: Pipelines and Tasks. The doc_dir should point to the location of pipelines and tasks manifests.
+By default, the plugin creates two sections at the root level: Pipelines and Tasks. The docs_dir should point to the location of pipelines and tasks manifests.
 
 | Config parameter | Type | Description | Default | Since |
 | ---------------- | ---- | ----------- | ------- | -------------- |

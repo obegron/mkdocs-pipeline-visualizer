@@ -4,6 +4,8 @@
 
 The mkdocs-pipeline-visualizer plugin automates the creation of up-to-date documentation for your Tekton pipelines and tasks.
 
+![Screenshot](https://raw.githubusercontent.com/obegron/mkdocs-pipeline-visualizer/main/example/tekton/pipeline-view.png)
+
 ## Installation
 
 To install the mkdocs-pipeline-visualizer plugin, run the following command:

@@ -7,7 +7,7 @@ with open(path.join(this_dir, "README.md"), encoding="utf-8") as file:
 
 setup(
     name="mkdocs-pipeline-visualizer",
-    version="0.2.1",
+    version="0.2.2",
     description="generate MD documentation from tekton pipelines and tasks",
     long_description=long_description,
     long_description_content_type="text/markdown",

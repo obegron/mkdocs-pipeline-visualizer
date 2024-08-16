@@ -30,7 +30,7 @@ class PipelineVisualizer(BasePlugin):
         self.logger = logging.getLogger("mkdocs.plugins.pipeline_visualizer")
 
     def on_config(self, config):
-        self.nav_task_grouping_offset = self.parse_grouping_offset(
+        self.nav_task_grouping_offset = self._parse_grouping_offset(
             self.config["nav_task_grouping_offset"]
         )
         self.logger.setLevel(getattr(logging, self.config["log_level"]))
@@ -54,14 +54,14 @@ class PipelineVisualizer(BasePlugin):
         self.nav_generation = self.config["nav_generation"]
         self.nav_section_pipelines = self.config["nav_section_pipelines"]
         self.nav_section_tasks = self.config["nav_section_tasks"]
-        self.nav_pipeline_grouping_offset = self.parse_grouping_offset(
+        self.nav_pipeline_grouping_offset = self._parse_grouping_offset(
             self.config["nav_pipeline_grouping_offset"]
         )
         self.logger.info(
             "PipelineVisualizer plugin initialized with configuration: %s", self.config
         )
 
-    def parse_grouping_offset(self, offset_str):
+    def _parse_grouping_offset(self, offset_str):
         if offset_str is None:
             return None
         try:
@@ -92,7 +92,7 @@ class PipelineVisualizer(BasePlugin):
         for file in files:
             if file.src_path.endswith(".yaml"):
                 self.logger.debug("Processing YAML file: %s", file.src_path)
-                new_file = self.process_yaml_file(
+                new_file = self._process_yaml_file(
                     file, config, pipeline_versions, task_versions
                 )
                 if new_file:
@@ -104,13 +104,13 @@ class PipelineVisualizer(BasePlugin):
                 new_files.append(file)
 
         if self.nav_generation:
-            self.update_navigation(config["nav"], pipeline_versions, task_versions)
+            self._update_navigation(config["nav"], pipeline_versions, task_versions)
 
         self.logger.info("File processing complete.")
         return Files(new_files)
 
-    def process_yaml_file(self, file, config, pipeline_versions, task_versions):
-        resources = self.load_yaml(file.abs_src_path)
+    def _process_yaml_file(self, file, config, pipeline_versions, task_versions):
+        resources = self._load_yaml(file.abs_src_path)
         if not resources:
             self.logger.warning("Failed to load YAML file: %s", file.abs_src_path)
             return None
@@ -123,18 +123,18 @@ class PipelineVisualizer(BasePlugin):
             return None
 
         self.logger.info("Processing %s: %s", kind, file.abs_src_path)
-        new_file = self.create_markdown_file(
-            file, config, self.generate_markdown_content(resources)
+        new_file = self._create_markdown_file(
+            file, config, self._generate_markdown_content(resources)
         )
 
         if self.nav_generation:
-            self.add_to_versions(
+            self._add_to_versions(
                 resources[0], new_file, kind, pipeline_versions, task_versions
             )
 
         return new_file
 
-    def load_yaml(self, file_path):
+    def _load_yaml(self, file_path):
         try:
             with open(file_path, "r") as f:
                 return list(yaml.safe_load_all(f))
@@ -142,7 +142,7 @@ class PipelineVisualizer(BasePlugin):
             self.logger.error("Error parsing YAML file %s: %s", file_path, e)
             return None
 
-    def create_markdown_file(self, original_file, config, content):
+    def _create_markdown_file(self, original_file, config, content):
         md_file_path = original_file.abs_src_path.replace(".yaml", ".md")
         os.makedirs(os.path.dirname(md_file_path), exist_ok=True)
 
@@ -156,7 +156,7 @@ class PipelineVisualizer(BasePlugin):
             config["site_dir"],
         )
 
-    def generate_markdown_content(self, resources):
+    def _generate_markdown_content(self, resources):
         self.logger.debug(
             "Generating Markdown content for %d resources", len(resources)
         )
@@ -175,42 +175,42 @@ class PipelineVisualizer(BasePlugin):
             markdown_content += f"# {kind}: {resource_name}{resource_version}\n"
 
             if kind.lower() == "pipeline":
-                markdown_content += self.visualize_pipeline(spec)
+                markdown_content += self._visualize_pipeline(spec)
             elif kind.lower() == "task":
-                markdown_content += self.visualize_task(metadata, spec)
+                markdown_content += self._visualize_task(metadata, spec)
 
             markdown_content += "\n---\n\n"
         return markdown_content
 
-    def visualize_pipeline(self, spec):
+    def _visualize_pipeline(self, spec):
         self.logger.debug("Visualizing pipeline")
         markdown_content = ""
         tasks = spec.get("tasks", [])
         final = spec.get("finally", [])
         if self.plantuml_graphs:
-            markdown_content += self.make_graph_from_tasks(tasks, final)
-        markdown_content += self.visualize_parameters(spec.get("params", []))
-        markdown_content += self.visualize_workspaces(spec.get("workspaces", []))
-        markdown_content += self.visualize_tasks(tasks)
+            markdown_content += self._make_graph_from_tasks(tasks, final)
+        markdown_content += self._visualize_parameters(spec.get("params", []))
+        markdown_content += self._visualize_workspaces(spec.get("workspaces", []))
+        markdown_content += self._visualize_tasks(tasks)
         if final:
             markdown_content += "## Finally\n\n"
-            markdown_content += self.visualize_tasks(final)
+            markdown_content += self._visualize_tasks(final)
         return markdown_content
 
-    def visualize_task(self, metadata, spec):
+    def _visualize_task(self, metadata, spec):
         self.logger.debug("Visualizing task: %s", metadata.get("name", "Unnamed Task"))
         markdown_content = (
             f"## Description\n>{spec.get('description','No description')}\n"
         )
-        markdown_content += self.visualize_parameters(spec.get("params", []))
-        markdown_content += self.visualize_results(spec.get("results", []))
-        markdown_content += self.visualize_workspaces(spec.get("workspaces", []))
-        markdown_content += self.visualize_step_template(spec.get("stepTemplate",[]))
-        markdown_content += self.visualize_steps(spec.get("steps", []))
-        markdown_content += self.visualize_usage(metadata, spec)
+        markdown_content += self._visualize_parameters(spec.get("params", []))
+        markdown_content += self._visualize_results(spec.get("results", []))
+        markdown_content += self._visualize_workspaces(spec.get("workspaces", []))
+        markdown_content += self._visualize_step_template(spec.get("stepTemplate",[]))
+        markdown_content += self._visualize_steps(spec.get("steps", []))
+        markdown_content += self._visualize_usage(metadata, spec)
         return markdown_content
 
-    def make_graph_from_tasks(self, tasks, final):
+    def _make_graph_from_tasks(self, tasks, final):
         self.logger.debug(
             "Generating graph from %d tasks and %d final tasks", len(tasks), len(final)
         )
@@ -254,13 +254,13 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += "@enduml\n```\n"
         return markdown_content
 
-    def visualize_step_template(self, template):
+    def _visualize_step_template(self, template):
         if not template:
             return ""
         markdown_content = "## Step template\n\n"
 
         if template.get('env',[]):
-            markdown_content += self.table_with_header(
+            markdown_content += self._table_with_header(
                 "**Environment Variables:**", ["Name", "Value"]
             )
             for var in template.get('env',[]):
@@ -270,7 +270,7 @@ class PipelineVisualizer(BasePlugin):
                     markdown_content += f"| `{name}` | `{value}` |\n"
 
         if template.get('envFrom',[]):
-            markdown_content += self.table_with_header(
+            markdown_content += self._table_with_header(
                 "**Environment from config:**", ["Name", "Type"]
             )
             for value_from in template.get('envFrom'):
@@ -284,36 +284,36 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += "\n"
         return markdown_content        
     
-    def visualize_parameters(self, params):
+    def _visualize_parameters(self, params):
         if not params:
             return "## Parameters\n\nNo parameters\n"
-        markdown_content = self.table_with_header(
+        markdown_content = self._table_with_header(
             "## Parameters", ["Name", "Type", "Description", "Default"]
         )
         for param in params:
             name = param.get("name", "Unnamed Parameter")
             param_type = param.get("type", "String")
-            description = self.format_value(
+            description = self._format_value(
                 param.get("description", "No description provided.")
             )
             default = param.get("default", "")
             markdown_content += f"| `{name}` | `{param_type}` | {description} | {f'`{default}`' if default else ''} |\n"
         return markdown_content + "\n"
 
-    def visualize_workspaces(self, workspaces):
+    def _visualize_workspaces(self, workspaces):
         if not workspaces:
             return ""
-        markdown_content = self.table_with_header(
+        markdown_content = self._table_with_header(
             "## Workspaces", ["Name", "Description", "Optional"]
         )
         for workspace in workspaces:
             name = workspace.get("name", "Unnamed Workspace")
-            description = self.format_value(workspace.get("description", ""))
+            description = self._format_value(workspace.get("description", ""))
             optional = workspace.get("optional", False)
             markdown_content += f"| `{name}` | {description} | { optional } |\n"
         return markdown_content + "\n"
 
-    def visualize_tasks(self, tasks):
+    def _visualize_tasks(self, tasks):
         markdown_content = "## Tasks\n\n"
         for task in tasks:
             task_name = task.get("name", "Unnamed Task")
@@ -332,17 +332,17 @@ class PipelineVisualizer(BasePlugin):
                 for dep in run_after:
                     markdown_content += f"- `{dep}`\n"
                 markdown_content += "\n"
-            markdown_content += self.visualize_common_elements(task)
+            markdown_content += self._visualize_common_elements(task)
 
             # Parameters
             params = task.get("params", [])
             if params:
-                markdown_content += self.table_with_header(
+                markdown_content += self._table_with_header(
                     "**Parameters**", ["Name", "Value"]
                 )
                 for param in params:
                     name = param.get("name", "Unnamed Parameter")
-                    value = self.format_value(param.get("value", ""))
+                    value = self._format_value(param.get("value", ""))
                     if "<br>" in str(value) or "<ul>" in str(value) or value == "":
                         markdown_content += f"| `{name}` | {value} |\n"
                     else:
@@ -352,7 +352,7 @@ class PipelineVisualizer(BasePlugin):
             # Workspaces
             workspaces = task.get("workspaces", [])
             if workspaces:
-                markdown_content += self.table_with_header(
+                markdown_content += self._table_with_header(
                     "**Workspaces**", ["Name", "Workspace"]
                 )
                 for workspace in workspaces:
@@ -362,17 +362,17 @@ class PipelineVisualizer(BasePlugin):
                 markdown_content += "\n"
 
             # Environment Variables
-            markdown_content += self.visualize_environment(task.get("env", []))
+            markdown_content += self._visualize_environment(task.get("env", []))
             markdown_content += "---\n\n"
 
         return markdown_content
 
-    def visualize_steps(self, steps):
+    def _visualize_steps(self, steps):
         markdown_content = "## Steps\n\n"
         for i, step in enumerate(steps, 1):
             step_name = step.get("name", f"Step {i}")
             markdown_content += f"### {step_name}\n\n"
-            markdown_content += self.visualize_common_elements(step)
+            markdown_content += self._visualize_common_elements(step)
             # Image
             image = step.get("image", "Not specified")
             markdown_content += f"**Image:** `{image}`\n\n"
@@ -380,7 +380,7 @@ class PipelineVisualizer(BasePlugin):
             # Script
             script = step.get("script", "")
             if script:
-                markdown_content += f"**Script:**\n\n```{self.get_script_type(script)}\n{script}\n```\n\n"
+                markdown_content += f"**Script:**\n\n```{self._get_script_type(script)}\n{script}\n```\n\n"
 
             # Command
             command = step.get("command", [])
@@ -397,10 +397,10 @@ class PipelineVisualizer(BasePlugin):
                 markdown_content += "\n```\n\n"
 
             # Environment Variables
-            markdown_content += self.visualize_environment(step.get("env", []))
+            markdown_content += self._visualize_environment(step.get("env", []))
         return markdown_content
     
-    def visualize_common_elements(self, spec):
+    def _visualize_common_elements(self, spec):
         markdown_content = ""
     
         # Timeout
@@ -426,20 +426,20 @@ class PipelineVisualizer(BasePlugin):
         
         return markdown_content
 
-    def visualize_results(self, results):
+    def _visualize_results(self, results):
         if not results:
             return "\n"
-        markdown_content = self.table_with_header("## Results", ["Name", "Description"])
+        markdown_content = self._table_with_header("## Results", ["Name", "Description"])
         for result in results:
             name = result.get("name", "Unnamed Result")
             description = result.get("description", "No description provided.")
             markdown_content += f"| `{name}` | {description} |\n"
         return markdown_content + "\n"
 
-    def visualize_environment(self, env):
+    def _visualize_environment(self, env):
         if not env:
             return ""
-        markdown_content = self.table_with_header(
+        markdown_content = self._table_with_header(
             "**Environment Variables:**", ["Name", "Value", "Source", "Optional"]
         )
         for var in env:
@@ -469,7 +469,7 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += "\n"
         return markdown_content
 
-    def visualize_usage(self, metadata, spec):
+    def _visualize_usage(self, metadata, spec):
         task_name = metadata.get("name", "Unnamed Task")
         task_display_name = metadata.get("annotations", {}).get(
             "tekton.dev/displayName", task_name
@@ -510,14 +510,14 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
 """
 
-    def format_value(self, value):
+    def _format_value(self, value):
         if isinstance(value, list):
             value = "<ul>" + "".join(f"<li>`{v}`</li>" for v in value) + "</ul>"
         elif isinstance(value, str) and "\n" in value:
             value = value.replace("\n", "<br>")
         return value
 
-    def table_with_header(self, header, table_headers):
+    def _table_with_header(self, header, table_headers):
         col_headers = "|"
         under_line = "|"
         for col in table_headers:
@@ -525,7 +525,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             under_line += f" { '-' * len(col) } |"
         return f"{header}\n\n{col_headers}\n{under_line}\n"
 
-    def get_script_type(self, script):
+    def _get_script_type(self, script):
 
         shebang_dict = {
             "python": "python",
@@ -546,7 +546,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
         return "shell"
 
-    def add_to_versions(
+    def _add_to_versions(
         self, resource, new_file, kind, pipeline_versions, task_versions
     ):
         metadata = resource.get("metadata", {})
@@ -589,15 +589,15 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             (resource_version, new_file.src_path)
         )
 
-    def update_navigation(self, nav, pipeline_versions, task_versions):
+    def _update_navigation(self, nav, pipeline_versions, task_versions):
         self.logger.info("Updating navigation structure")
-        pipelines_section = self.find_or_create_section(nav, self.nav_section_pipelines)
-        tasks_section = self.find_or_create_section(nav, self.nav_section_tasks)
+        pipelines_section = self._find_or_create_section(nav, self.nav_section_pipelines)
+        tasks_section = self._find_or_create_section(nav, self.nav_section_tasks)
 
-        self.add_to_nav(pipelines_section, pipeline_versions)
-        self.add_to_nav(tasks_section, task_versions)
+        self._add_to_nav(pipelines_section, pipeline_versions)
+        self._add_to_nav(tasks_section, task_versions)
 
-    def find_or_create_section(self, nav, section_name):
+    def _find_or_create_section(self, nav, section_name):
         self.logger.debug("Finding or creating navigation section: %s", section_name)
 
         def find_section_recursive(nav_item, section_name):
@@ -624,7 +624,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
         nav.append(new_section)
         return new_section[section_name]
 
-    def add_to_nav(self, nav_list, versions_dict):
+    def _add_to_nav(self, nav_list, versions_dict):
         self.logger.debug("Adding items to navigation")
 
         def semantic_version_key(version_tuple):
@@ -638,7 +638,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
         for group_path, resources in versions_dict.items():
             if group_path:
-                current_level = self.find_or_create_nested_dict(
+                current_level = self._find_or_create_nested_dict(
                     nav_list, group_path.split(os.sep)
                 )
             else:
@@ -673,7 +673,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                         # If no entry exists, create a new one
                         current_level.append({resource_name: resource_versions})
 
-    def find_or_create_nested_dict(self, current_level, path_parts):
+    def _find_or_create_nested_dict(self, current_level, path_parts):
         self.logger.debug(
             "Finding or creating nested dict for path: %s", "/".join(path_parts)
         )

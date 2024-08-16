@@ -87,7 +87,7 @@ def test_markdown_file_creation(plugin, mock_config, tmp_path):
         use_directory_urls=False,
     )
 
-    new_file = plugin.process_yaml_file(mock_file, mock_config, {}, {})
+    new_file = plugin._process_yaml_file(mock_file, mock_config, {}, {})
 
     assert new_file is not None
     assert new_file.src_path.endswith(".md")
@@ -172,7 +172,7 @@ def test_nav_default_structure_generation(plugin, mock_config):
 
     mock_nav = []
 
-    plugin.update_navigation(mock_nav, pipeline_versions, task_versions)
+    plugin._update_navigation(mock_nav, pipeline_versions, task_versions)
 
     assert len(mock_nav) == 2
     assert "Pipelines" in mock_nav[0]
@@ -210,7 +210,7 @@ def test_nav_structure_generation(plugin, mock_config):
     task_versions = {"group2": {"task1": [("1.0", "path/to/task1.md")]}}
 
     mock_nav = []
-    plugin.update_navigation(mock_nav, pipeline_versions, task_versions)
+    plugin._update_navigation(mock_nav, pipeline_versions, task_versions)
 
     assert len(mock_nav) == 2
     assert "CustomPipelines" in mock_nav[0]
@@ -236,7 +236,7 @@ def test_add_to_versions_no_version(plugin):
     pipeline_versions = {}
     task_versions = {}
 
-    plugin.add_to_versions(
+    plugin._add_to_versions(
         resource, new_file, "pipeline", pipeline_versions, task_versions
     )
 
@@ -260,7 +260,7 @@ def test_add_to_versions(plugin):
     pipeline_versions = {}
     task_versions = {}
 
-    plugin.add_to_versions(
+    plugin._add_to_versions(
         resource, new_file, "pipeline", pipeline_versions, task_versions
     )
 
@@ -282,7 +282,7 @@ def test_add_to_versions_with_grouping_offset(plugin):
     new_file = File("group1/group2/pipelines/grouped-pipeline.md", "", "", "")
     pipeline_versions = {}
 
-    plugin.add_to_versions(resource, new_file, "pipeline", pipeline_versions, {})
+    plugin._add_to_versions(resource, new_file, "pipeline", pipeline_versions, {})
 
     assert os.path.normpath("group1/group2") in pipeline_versions
     assert "grouped-pipeline" in pipeline_versions[os.path.normpath("group1/group2")]
@@ -310,8 +310,8 @@ def test_add_to_versions_multiple_versions(plugin):
     new_file2 = File("tasks/multi-version-task-1.1.0.md", "", "", "")
     task_versions = {}
 
-    plugin.add_to_versions(resource1, new_file1, "task", {}, task_versions)
-    plugin.add_to_versions(resource2, new_file2, "task", {}, task_versions)
+    plugin._add_to_versions(resource1, new_file1, "task", {}, task_versions)
+    plugin._add_to_versions(resource2, new_file2, "task", {}, task_versions)
 
     assert "" in task_versions
     assert "multi-version-task" in task_versions[""]
@@ -332,7 +332,7 @@ def test_add_to_versions_with_invalid_grouping_offset(plugin):
     new_file = File("group1/group2/pipelines/grouped-pipeline.md", "", "", "")
     pipeline_versions = {}
 
-    plugin.add_to_versions(resource, new_file, "pipeline", pipeline_versions, {})
+    plugin._add_to_versions(resource, new_file, "pipeline", pipeline_versions, {})
 
     assert "" in pipeline_versions
     assert "grouped-pipeline" in pipeline_versions[""]

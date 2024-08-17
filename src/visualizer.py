@@ -205,7 +205,7 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += self._visualize_parameters(spec.get("params", []))
         markdown_content += self._visualize_results(spec.get("results", []))
         markdown_content += self._visualize_workspaces(spec.get("workspaces", []))
-        markdown_content += self._visualize_step_template(spec.get("stepTemplate",[]))
+        markdown_content += self._visualize_step_template(spec.get("stepTemplate", []))
         markdown_content += self._visualize_steps(spec.get("steps", []))
         markdown_content += self._visualize_usage(metadata, spec)
         return markdown_content
@@ -259,31 +259,35 @@ class PipelineVisualizer(BasePlugin):
             return ""
         markdown_content = "## Step template\n\n"
 
-        if template.get('env',[]):
+        if template.get("env", []):
             markdown_content += self._table_with_header(
                 "**Environment Variables:**", ["Name", "Value"]
             )
-            for var in template.get('env',[]):
+            for var in template.get("env", []):
                 name = var.get("name", "Unnamed Variable")
                 value = var.get("value", "")
                 if value:
                     markdown_content += f"| `{name}` | `{value}` |\n"
 
-        if template.get('envFrom',[]):
+        if template.get("envFrom", []):
             markdown_content += self._table_with_header(
                 "**Environment from config:**", ["Name", "Type"]
             )
-            for value_from in template.get('envFrom'):
-                if value_from.get("configMapRef",{}):
-                    cm_name = value_from.get("configMapRef").get("name", "Not specified")
+            for value_from in template.get("envFrom"):
+                if value_from.get("configMapRef", {}):
+                    cm_name = value_from.get("configMapRef").get(
+                        "name", "Not specified"
+                    )
                     markdown_content += f"| `{cm_name}` | ConfigMap |\n"
-                if value_from.get("secretRef",{}):
-                    secret_name = value_from.get("secretRef").get("name", "Not specified")
+                if value_from.get("secretRef", {}):
+                    secret_name = value_from.get("secretRef").get(
+                        "name", "Not specified"
+                    )
                     markdown_content += f"| `{secret_name}` | Secret |\n"
 
         markdown_content += "\n"
-        return markdown_content        
-    
+        return markdown_content
+
     def _visualize_parameters(self, params):
         if not params:
             return "## Parameters\n\nNo parameters\n"
@@ -399,15 +403,15 @@ class PipelineVisualizer(BasePlugin):
             # Environment Variables
             markdown_content += self._visualize_environment(step.get("env", []))
         return markdown_content
-    
+
     def _visualize_common_elements(self, spec):
         markdown_content = ""
-    
+
         # Timeout
         timeout = spec.get("timeout")
         if timeout:
             markdown_content += f"**Timeout:** `{timeout}`\n\n"
-    
+
         # When
         when = spec.get("when", [])
         if when:
@@ -418,18 +422,20 @@ class PipelineVisualizer(BasePlugin):
                 values = condition.get("values", [])
                 markdown_content += f"- Input: `{input}`, Operator: `{operator}`, Values: `{', '.join(values)}`\n"
             markdown_content += "\n"
-    
+
         # Retries
         retries = spec.get("retries")
         if retries:
             markdown_content += f"**Retries:** `{retries}`\n\n"
-        
+
         return markdown_content
 
     def _visualize_results(self, results):
         if not results:
             return "\n"
-        markdown_content = self._table_with_header("## Results", ["Name", "Description"])
+        markdown_content = self._table_with_header(
+            "## Results", ["Name", "Description"]
+        )
         for result in results:
             name = result.get("name", "Unnamed Result")
             description = result.get("description", "No description provided.")
@@ -581,7 +587,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             group_path = ""
 
         if group_path not in versions_dict:
-            self.logger.debug(f"Creating new group: \"{group_path}\"")
+            self.logger.debug(f'Creating new group: "{group_path}"')
             versions_dict[group_path] = {}
         if resource_name not in versions_dict[group_path]:
             versions_dict[group_path][resource_name] = []
@@ -591,7 +597,9 @@ The `runAfter` parameter is optional and only needed if you want to specify task
 
     def _update_navigation(self, nav, pipeline_versions, task_versions):
         self.logger.info("Updating navigation structure")
-        pipelines_section = self._find_or_create_section(nav, self.nav_section_pipelines)
+        pipelines_section = self._find_or_create_section(
+            nav, self.nav_section_pipelines
+        )
         tasks_section = self._find_or_create_section(nav, self.nav_section_tasks)
 
         self._add_to_nav(pipelines_section, pipeline_versions)

@@ -46,7 +46,7 @@ By default, the plugin creates two sections at the root level: Pipelines and Tas
 | ---------------- | ---- | ----------- | ------- | -------------- |
 | `plantuml_graphs`| **[bool]** | Controls if pipeline graph should be visible | `True` | 0.1.5 |
 | `plantuml_graph_direction` | **[string]** | TB(top to bottom) or LR(left to right) | `TB` | 0.1.3 |
-| `plantuml_theme` | **[string]** | any theme from https://plantuml.com/theme to style e.g hacker, spacelab | `_none_` | 0.1.3 |
+| `plantuml_theme` | **[string]** | any theme listed on https://plantuml.com/theme to style e.g hacker, spacelab | `_none_` | 0.1.3 |
 | `nav_generation` | **[bool]** | automatically generate navigation tree | `True` | 0.2.0 |
 | `nav_section_pipelines` | **[string]** | section name used for pipelines | `Pipelines` | 0.2.0 |
 | `nav_section_tasks` | **[string]** | section name used for tasks | `Tasks` | 0.2.0 |

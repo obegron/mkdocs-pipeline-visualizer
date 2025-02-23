@@ -385,11 +385,12 @@ class PipelineVisualizer(BasePlugin):
                 markdown_content += "\n"
 
             if task.get("workspaces"):
-                markdown_content += self._table_with_header("**Workspaces:**", ["Name", "Optional"])
+                markdown_content += self._table_with_header("**Workspaces:**", ["Name", "Workspace", "Optional"])
                 for ws in task["workspaces"]:
                     ws_name = ws.get("name", "Unnamed Workspace")
+                    ws_workspace = ws.get("workspace", "Not specified")
                     ws_optional = ws.get("optional", False)
-                    markdown_content += f"| `{ws_name}` | {ws_optional} |\n"
+                    markdown_content += f"| `{ws_name}` | `{ws_workspace}` | {ws_optional} |\n"
                 markdown_content += "\n"
             
         return markdown_content

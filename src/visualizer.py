@@ -364,6 +364,8 @@ class PipelineVisualizer(BasePlugin):
                 markdown_content += f"**Task Reference:** [`{ref_name}`]({relative_path})\n\n"
             else:
                 markdown_content += f"**Task Reference:** `{ref_name}`\n\n"
+            
+            markdown_content += self._visualize_common_elements(task)
 
             # List parameters passed with default values
             if task.get("params"):
@@ -389,8 +391,7 @@ class PipelineVisualizer(BasePlugin):
                     ws_optional = ws.get("optional", False)
                     markdown_content += f"| `{ws_name}` | {ws_optional} |\n"
                 markdown_content += "\n"
-
-            markdown_content += self._visualize_common_elements(task)
+            
         return markdown_content
 
     def _visualize_steps(self, steps):

@@ -135,6 +135,9 @@ plugins:
 
 ## Changelog
 
+### 0.3.1
+* Display parameters passed from pipeline to task in pipeline view.
+
 ### 0.3.0
 * Added optional support for categorization of tasks in navigation using `tekton.dev/categories` annotation
 

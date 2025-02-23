@@ -353,21 +353,25 @@ class PipelineVisualizer(BasePlugin):
         markdown_content = "## Tasks\n\n"
         for task in tasks:
             task_name = task.get("name", "Unnamed Task")
-            task_ref = task.get("taskRef", {})
             markdown_content += f"### {task_name}\n\n"
 
             # Task Reference with relative link if available
+            task_ref = task.get("taskRef", {})
             ref_name = task_ref.get("name", "Not specified")
             if ref_name in self._task_paths:
                 target_path = self._task_paths[ref_name]["path"]
-                relative_path = self._get_relative_path(
-                    self.current_file.src_path, target_path
-                )
-                markdown_content += (
-                    f"**Task Reference:** [`{ref_name}`]({relative_path})\n\n"
-                )
+                relative_path = self._get_relative_path(self.current_file.src_path, target_path)
+                markdown_content += f"**Task Reference:** [`{ref_name}`]({relative_path})\n\n"
             else:
                 markdown_content += f"**Task Reference:** `{ref_name}`\n\n"
+
+            if task.get("params"):
+                markdown_content += self._table_with_header("**Parameters:**", ["Name", "Value"])
+                for param in task["params"]:
+                    p_name = param.get("name", "Unnamed")
+                    p_vaule = param.get("value", "")
+                    markdown_content += f"| `{p_name}` | `{p_vaule}` |\n"
+                markdown_content += "\n"
 
             markdown_content += self._visualize_common_elements(task)
         return markdown_content

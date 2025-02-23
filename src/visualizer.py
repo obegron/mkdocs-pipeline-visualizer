@@ -365,12 +365,29 @@ class PipelineVisualizer(BasePlugin):
             else:
                 markdown_content += f"**Task Reference:** `{ref_name}`\n\n"
 
+            # List parameters passed with default values
             if task.get("params"):
                 markdown_content += self._table_with_header("**Parameters:**", ["Name", "Value"])
                 for param in task["params"]:
                     p_name = param.get("name", "Unnamed")
-                    p_vaule = param.get("value", "")
-                    markdown_content += f"| `{p_name}` | `{p_vaule}` |\n"
+                    p_value = param.get("value", "")
+                    if isinstance(p_value, list):
+                        if not p_value:
+                            p_default = '"<ul><li></li></ul>"'
+                        else:
+                            bullet_list = "<ul>" + "".join(f"<li>{item}</li>" for item in p_value) + "</ul>"
+                            p_default = bullet_list
+                    else:
+                        p_default = str(p_value)
+                    markdown_content += f"| `{p_name}` | {p_default} |\n"
+                markdown_content += "\n"
+
+            if task.get("workspaces"):
+                markdown_content += self._table_with_header("**Workspaces:**", ["Name", "Optional"])
+                for ws in task["workspaces"]:
+                    ws_name = ws.get("name", "Unnamed Workspace")
+                    ws_optional = ws.get("optional", False)
+                    markdown_content += f"| `{ws_name}` | {ws_optional} |\n"
                 markdown_content += "\n"
 
             markdown_content += self._visualize_common_elements(task)

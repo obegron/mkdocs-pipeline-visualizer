@@ -375,13 +375,12 @@ class PipelineVisualizer(BasePlugin):
                     p_value = param.get("value", "")
                     if isinstance(p_value, list):
                         if not p_value:
-                            p_default = '"<ul><li></li></ul>"'
+                            p_value = '"<ul><li></li></ul>"'
                         else:
-                            bullet_list = "<ul>" + "".join(f"<li>{item}</li>" for item in p_value) + "</ul>"
-                            p_default = bullet_list
+                            p_value = "<ul>" + "".join(f"<li>`{item}`</li>" for item in p_value) + "</ul>"
                     else:
-                        p_default = str(p_value)
-                    markdown_content += f"| `{p_name}` | {p_default} |\n"
+                        p_value = f"`{p_value}`"
+                    markdown_content += f"| `{p_name}` | {p_value} |\n"
                 markdown_content += "\n"
 
             if task.get("workspaces"):

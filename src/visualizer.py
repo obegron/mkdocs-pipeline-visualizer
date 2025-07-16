@@ -16,8 +16,10 @@ class PipelineVisualizer(BasePlugin):
         ("nav_generation", config_options.Type(bool, default=True)),
         ("nav_section_pipelines", config_options.Type(str, default="Pipelines")),
         ("nav_section_tasks", config_options.Type(str, default="Tasks")),
+        ("nav_section_stepactions", config_options.Type(str, default="StepActions")),
         ("nav_pipeline_grouping_offset", config_options.Type(str, default=None)),
         ("nav_task_grouping_offset", config_options.Type(str, default=None)),
+        ("nav_stepaction_grouping_offset", config_options.Type(str, default=None)),
         ("nav_group_tasks_by_category", config_options.Type(bool, default=False)),
         ("nav_category_mapping", config_options.Type(dict, default={})),
         (
@@ -32,12 +34,16 @@ class PipelineVisualizer(BasePlugin):
         self.logger = logging.getLogger("mkdocs.plugins.pipeline_visualizer")
         self._processed_files = {}
         self._task_paths = {}  # Store relative paths for tasks
+        self._stepaction_paths = {}  # Store relative paths for stepactions
         self.in_serve_mode = False
         self.current_file = None  # Track current file being processed
 
     def on_config(self, config):
         self.nav_task_grouping_offset = self._parse_grouping_offset(
             self.config["nav_task_grouping_offset"]
+        )
+        self.nav_stepaction_grouping_offset = self._parse_grouping_offset(
+            self.config["nav_stepaction_grouping_offset"]
         )
         self.logger.setLevel(getattr(logging, self.config["log_level"]))
 
@@ -60,6 +66,7 @@ class PipelineVisualizer(BasePlugin):
         self.nav_generation = self.config["nav_generation"]
         self.nav_section_pipelines = self.config["nav_section_pipelines"]
         self.nav_section_tasks = self.config["nav_section_tasks"]
+        self.nav_section_stepactions = self.config["nav_section_stepactions"]
         self.nav_group_tasks_by_category = self.config["nav_group_tasks_by_category"]
         self.nav_pipeline_grouping_offset = self._parse_grouping_offset(
             self.config["nav_pipeline_grouping_offset"]
@@ -95,19 +102,20 @@ class PipelineVisualizer(BasePlugin):
     def on_files(self, files, config):
         pipeline_versions = {}
         task_versions = {}
+        stepaction_versions = {}
         new_files = []
 
-        # Process tasks first to build task reference map
+        # Process tasks and stepactions first to build task reference map
         for file in files:
             if not file.src_path.endswith(".yaml"):
                 continue
 
             resources = self._load_yaml(file.abs_src_path)
             if resources and any(
-                r.get("kind", "").lower() == "task" for r in resources
+                r.get("kind", "").lower() in ["task", "stepaction"] for r in resources
             ):
                 new_file = self._process_yaml_file(
-                    file, config, pipeline_versions, task_versions
+                    file, config, pipeline_versions, task_versions, stepaction_versions
                 )
                 if new_file:
                     new_files.append(new_file)
@@ -122,17 +130,17 @@ class PipelineVisualizer(BasePlugin):
                 r.get("kind", "").lower() == "pipeline" for r in resources
             ):
                 new_file = self._process_yaml_file(
-                    file, config, pipeline_versions, task_versions
+                    file, config, pipeline_versions, task_versions, stepaction_versions
                 )
                 if new_file:
                     new_files.append(new_file)
 
         if self.nav_generation:
-            self._update_navigation(config["nav"], pipeline_versions, task_versions)
+            self._update_navigation(config["nav"], pipeline_versions, task_versions, stepaction_versions)
 
         return Files(list(files) + new_files)
 
-    def _process_yaml_file(self, file, config, pipeline_versions, task_versions):
+    def _process_yaml_file(self, file, config, pipeline_versions, task_versions, stepaction_versions):
         """Process YAML file containing one or more resources"""
         resources = self._load_yaml(file.abs_src_path)
         if not resources:
@@ -151,9 +159,9 @@ class PipelineVisualizer(BasePlugin):
         if new_file:
             for resource in resources:
                 kind = resource.get("kind", "").lower()
-                if kind in ["pipeline", "task"]:
+                if kind in ["pipeline", "task", "stepaction"]:
                     self._add_to_versions(
-                        resource, new_file, kind, pipeline_versions, task_versions
+                        resource, new_file, kind, pipeline_versions, task_versions, stepaction_versions
                     )
 
         return new_file
@@ -210,6 +218,8 @@ class PipelineVisualizer(BasePlugin):
                 markdown_content += self._visualize_pipeline(spec)
             elif kind.lower() == "task":
                 markdown_content += self._visualize_task(metadata, spec)
+            elif kind.lower() == "stepaction":
+                markdown_content += self._visualize_stepaction(metadata, spec)
 
             markdown_content += "\n---\n\n"
         return markdown_content
@@ -240,6 +250,17 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += self._visualize_step_template(spec.get("stepTemplate", []))
         markdown_content += self._visualize_steps(spec.get("steps", []))
         markdown_content += self._visualize_usage(metadata, spec)
+        return markdown_content
+
+    def _visualize_stepaction(self, metadata, spec):
+        self.logger.debug("Visualizing stepaction: %s", metadata.get("name", "Unnamed StepAction"))
+        markdown_content = (
+            f"## Description\n>{spec.get('description','No description')}\n"
+        )
+        markdown_content += self._visualize_parameters(spec.get("params", []))
+        markdown_content += self._visualize_results(spec.get("results", []))
+        markdown_content += self._visualize_workspaces(spec.get("workspaces", []))
+        markdown_content += self._visualize_steps(spec.get("steps", []))
         return markdown_content
 
     def _make_graph_from_tasks(self, tasks, final):
@@ -364,6 +385,16 @@ class PipelineVisualizer(BasePlugin):
                 markdown_content += f"**Task Reference:** [`{ref_name}`]({relative_path})\n\n"
             else:
                 markdown_content += f"**Task Reference:** `{ref_name}`\n\n"
+
+            step_ref = task.get("ref", {})
+            if step_ref:
+                ref_name = step_ref.get("name", "Not specified")
+                if ref_name in self._stepaction_paths:
+                    target_path = self._stepaction_paths[ref_name]["path"]
+                    relative_path = self._get_relative_path(self.current_file.src_path, target_path)
+                    markdown_content += f"**StepAction Reference:** [`{ref_name}`]({relative_path})\n\n"
+                else:
+                    markdown_content += f"**StepAction Reference:** `{ref_name}`\n\n"
             
             markdown_content += self._visualize_common_elements(task)
 
@@ -400,28 +431,40 @@ class PipelineVisualizer(BasePlugin):
             step_name = step.get("name", f"Step {i}")
             markdown_content += f"### {step_name}\n\n"
             markdown_content += self._visualize_common_elements(step)
-            # Image
-            image = step.get("image", "Not specified")
-            markdown_content += f"**Image:** `{image}`\n\n"
 
-            # Script
-            script = step.get("script", "")
-            if script:
-                markdown_content += f"**Script:**\n\n```{self._get_script_type(script)}\n{script}\n```\n\n"
+            # StepAction Reference
+            step_ref = step.get("ref", {})
+            if step_ref:
+                ref_name = step_ref.get("name", "Not specified")
+                if ref_name in self._stepaction_paths:
+                    target_path = self._stepaction_paths[ref_name]["path"]
+                    relative_path = self._get_relative_path(self.current_file.src_path, target_path)
+                    markdown_content += f"**StepAction Reference:** [`{ref_name}`]({relative_path})\n\n"
+                else:
+                    markdown_content += f"**StepAction Reference:** `{ref_name}`\n\n"
+            else:
+                # Image
+                image = step.get("image", "Not specified")
+                markdown_content += f"**Image:** `{image}`\n\n"
 
-            # Command
-            command = step.get("command", [])
-            if command:
-                markdown_content += "**Command:**\n\n```console\n"
-                markdown_content += " ".join(command)
-                markdown_content += "\n```\n\n"
+                # Script
+                script = step.get("script", "")
+                if script:
+                    markdown_content += f"**Script:**\n\n```\n{self._get_script_type(script)}\n{script}\n```\n\n"
 
-            # Args
-            args = step.get("args", [])
-            if args:
-                markdown_content += "**Arguments:**\n\n```shell\n"
-                markdown_content += " ".join(args)
-                markdown_content += "\n```\n\n"
+                # Command
+                command = step.get("command", [])
+                if command:
+                    markdown_content += "**Command:**\n\n```console\n"
+                    markdown_content += " ".join(command)
+                    markdown_content += "\n```\n\n"
+
+                # Args
+                args = step.get("args", [])
+                if args:
+                    markdown_content += "**Arguments:**\n\n```shell\n"
+                    markdown_content += " ".join(args)
+                    markdown_content += "\n```\n\n"
 
             # Environment Variables
             markdown_content += self._visualize_environment(step.get("env", []))
@@ -582,7 +625,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             return [c.strip() for c in categories.split(",")] if categories else []
         return []
 
-    def _add_to_versions(self, resource, file, kind, pipeline_versions, task_versions):
+    def _add_to_versions(self, resource, file, kind, pipeline_versions, task_versions, stepaction_versions):
         metadata = resource.get("metadata", {})
         name = metadata.get("name", "Unnamed Resource")
         version_label = metadata.get("labels", {}).get("app.kubernetes.io/version", "")
@@ -607,6 +650,16 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             task_versions.setdefault(name, {"versions": [], "categories": categories})[
                 "versions"
             ].append((version_str, path))
+        elif kind == "stepaction":
+            # Store stepaction reference with version comparison
+            current_version = self._stepaction_paths.get(name, {}).get("version", "")
+            if not current_version or self._semantic_version_key(
+                version_label
+            ) > self._semantic_version_key(current_version):
+                self._stepaction_paths[name] = {"version": version_label, "path": path}
+
+            # Add to stepaction versions
+            stepaction_versions.setdefault(name, []).append((version_str, path))
         elif kind == "pipeline":
             # Get group path without version directories
             group = self._get_group(file.src_path, self.nav_pipeline_grouping_offset)
@@ -644,7 +697,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                     version_dict[version_name] = path
                 nav_section.append({resource_name: version_dict})
 
-    def _update_navigation(self, nav, pipeline_versions, task_versions):
+    def _update_navigation(self, nav, pipeline_versions, task_versions, stepaction_versions):
         """Update navigation structure"""
         self.logger.info("Updating navigation structure")
 
@@ -652,6 +705,7 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             nav, self.nav_section_pipelines
         )
         tasks_section = self._find_or_create_section(nav, self.nav_section_tasks)
+        stepactions_section = self._find_or_create_section(nav, self.nav_section_stepactions)
 
         if pipeline_versions:
             grouped_pipelines = {}
@@ -721,6 +775,10 @@ The `runAfter` parameter is optional and only needed if you want to specify task
                     name: info["versions"] for name, info in task_versions.items()
                 }
                 self._add_to_nav(tasks_section, simplified_versions)
+
+        # Handle stepaction versions
+        if stepaction_versions:
+            self._add_to_nav(stepactions_section, stepaction_versions)
 
     def _find_or_create_section(self, nav, section_name):
         self.logger.debug("Finding or creating navigation section: %s", section_name)

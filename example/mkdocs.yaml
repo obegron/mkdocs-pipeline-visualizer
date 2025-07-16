@@ -7,12 +7,14 @@ nav:
   - Tekton:
     - "🚀 Pipelines": []  
     - "🛠️ Tasks": []
+    - "⚙️ StepActions": []
 
 plugins:
   - pipeline-visualizer:
       plantuml_theme: hacker
       nav_section_tasks: "🛠️ Tasks"
       nav_section_pipelines: "🚀 Pipelines"
+      nav_section_stepactions: "⚙️ StepActions"
 
 markdown_extensions:
   - abbr

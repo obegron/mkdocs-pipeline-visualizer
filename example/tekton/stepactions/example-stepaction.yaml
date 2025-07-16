@@ -1,0 +1,24 @@
+apiVersion: tekton.dev/v1beta1
+kind: StepAction
+metadata:
+  name: example-stepaction
+  labels:
+    app.kubernetes.io/version: "0.1"
+spec:
+  description: >
+    This is an example StepAction.
+  params:
+    - name: message
+      type: string
+      description: The message to print.
+      default: "Hello, World!"
+  results:
+    - name: output
+      description: The output of the StepAction.
+  steps:
+    - name: step1
+      image: ubuntu
+      script: |
+        #!/bin/bash
+        echo "$(params.message)"
+        echo -n "$(params.message)" > $(results.output.path)

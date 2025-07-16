@@ -51,8 +51,10 @@ By default, the plugin creates two sections at the root level: Pipelines and Tas
 | `nav_group_tasks_by_category` | **[bool]** | Group tasks in navigation by `tekton.dev/categories` annotation | `False` | 0.3.0 |
 | `nav_section_pipelines` | **[string]** | Section name used for pipelines | `Pipelines` | 0.2.0 |
 | `nav_section_tasks` | **[string]** | Section name used for tasks | `Tasks` | 0.2.0 |
+| `nav_section_stepactions` | **[string]** | Section name used for stepactions | `StepActions` | 0.4.0 |
 | `nav_pipeline_grouping_offset` | **[string]** | Controls how pipeline file paths are represented in the navigation structure. The format is "start:end", where: "start" is the index of the first directory to include "end" is the index of the last directory to include (use negative numbers to count from the end) | `None` | 0.2.0 |
 | `nav_task_grouping_offset` | **[string]** | Same as `nav_pipeline_grouping_offset` but for tasks | `None` | 0.2.0 |
+| `nav_stepaction_grouping_offset` | **[string]** | Same as `nav_pipeline_grouping_offset` but for stepactions | `None` | 0.4.0 |
 | `log_level` | **[string]** | `DEBUG INFO WARNING ERROR CRITICAL` | `INFO` | 0.2.0 |
 | `nav_category_mapping` | **[dict]** | Custom category name mappings | `{}` | 0.3.0 |
 
@@ -94,6 +96,7 @@ nav:
   - Tekton:
     - "Tasks": []
     - "Pipelines": []
+    - "StepActions": []
 
 plugins:
   - pipeline-visualizer
@@ -112,12 +115,14 @@ nav:
   - Tekton:
     - "🛠️ Tasks": []
     - "🚀 Pipelines": []
+    - "⚙️ StepActions": []
 
 plugins:
   - pipeline-visualizer:
       plantuml_theme: hacker
       nav_section_tasks: "🛠️ Tasks"
-      nav_section_pipelines: "🚀 Pipelines"      
+      nav_section_pipelines: "🚀 Pipelines"
+      nav_section_stepactions: "⚙️ StepActions"      
 ```
 
 ### Category Name Mapping
@@ -135,8 +140,11 @@ plugins:
 
 ## Changelog
 
-### 0.3.1
-* Display parameters passed from pipeline to task in pipeline view.
+### 0.4.0
+* Added support for Tekton StepActions.
+* Added `nav_section_stepactions` and `nav_stepaction_grouping_offset` configuration options.
+* Updated navigation generation to include StepActions.
+* Updated example configuration and documentation.
 
 ### 0.3.0
 * Added optional support for categorization of tasks in navigation using `tekton.dev/categories` annotation

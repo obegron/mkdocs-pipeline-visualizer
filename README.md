@@ -145,6 +145,7 @@ plugins:
 * Added `nav_section_stepactions` and `nav_stepaction_grouping_offset` configuration options.
 * Updated navigation generation to include StepActions.
 * Updated example configuration and documentation.
+* **Fixed:** Resolved infinite loop issue with `mkdocs serve` by preventing unnecessary file writes when content is unchanged.
 
 ### 0.3.0
 * Added optional support for categorization of tasks in navigation using `tekton.dev/categories` annotation

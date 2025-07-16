@@ -1,6 +1,7 @@
 import os
 import yaml
 import logging
+import hashlib
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import File, Files
 from mkdocs.config import config_options
@@ -138,7 +139,7 @@ class PipelineVisualizer(BasePlugin):
         if self.nav_generation:
             self._update_navigation(config["nav"], pipeline_versions, task_versions, stepaction_versions)
 
-        return Files(list(files) + new_files)
+        return Files(list(files) + [f for f in new_files if f is not None])
 
     def _process_yaml_file(self, file, config, pipeline_versions, task_versions, stepaction_versions):
         """Process YAML file containing one or more resources"""
@@ -184,6 +185,27 @@ class PipelineVisualizer(BasePlugin):
         """Create markdown file with optional suffix for multi-doc files"""
         base_path = original_file.abs_src_path.replace(".yaml", f"{suffix}.md")
         os.makedirs(os.path.dirname(base_path), exist_ok=True)
+
+        new_content_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
+
+        # Check if file exists and content is the same
+        if os.path.exists(base_path):
+            with open(base_path, "r") as f:
+                existing_content = f.read()
+                existing_content_hash = hashlib.md5(
+                    existing_content.encode("utf-8")
+                ).hexdigest()
+                if new_content_hash == existing_content_hash:
+                    self.logger.debug(
+                        "Skipping write for %s: content unchanged", base_path
+                    )
+                    # Even if content is unchanged, return the File object so it's included in navigation
+                    return File(
+                        original_file.src_path.replace(".yaml", f"{suffix}.md"),
+                        original_file.src_dir,
+                        original_file.dest_dir,
+                        config["site_dir"],
+                    )
 
         with open(base_path, "w") as f:
             f.write(content)

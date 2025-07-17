@@ -15,6 +15,7 @@ class PipelineVisualizer(BasePlugin):
         ("plantuml_theme", config_options.Type(str, default="_none_")),
         ("plantuml_graphs", config_options.Type(bool, default=True)),
         ("nav_generation", config_options.Type(bool, default=True)),
+        ("nav_hide_empty_sections", config_options.Type(bool, default=False)),
         ("nav_section_pipelines", config_options.Type(str, default="Pipelines")),
         ("nav_section_tasks", config_options.Type(str, default="Tasks")),
         ("nav_section_stepactions", config_options.Type(str, default="StepActions")),
@@ -65,6 +66,7 @@ class PipelineVisualizer(BasePlugin):
         self.plantuml_theme = self.config["plantuml_theme"]
         self.plantuml_graphs = self.config["plantuml_graphs"]
         self.nav_generation = self.config["nav_generation"]
+        self.nav_hide_empty_sections = self.config["nav_hide_empty_sections"]
         self.nav_section_pipelines = self.config["nav_section_pipelines"]
         self.nav_section_tasks = self.config["nav_section_tasks"]
         self.nav_section_stepactions = self.config["nav_section_stepactions"]
@@ -801,6 +803,26 @@ The `runAfter` parameter is optional and only needed if you want to specify task
         # Handle stepaction versions
         if stepaction_versions:
             self._add_to_nav(stepactions_section, stepaction_versions)
+
+        if self.nav_hide_empty_sections:
+            self._remove_empty_sections(nav)
+
+    def _remove_empty_sections(self, nav_list):
+        """Recursively remove empty sections from a navigation list."""
+        items_to_remove = []
+        for item in nav_list:
+            if isinstance(item, dict):
+                for key, value in item.items():
+                    if isinstance(value, list):
+                        # Recursively clean the sub-list
+                        self._remove_empty_sections(value)
+                        # If the sub-list is now empty, mark the parent dict for removal
+                        if not value:
+                            items_to_remove.append(item)
+
+        # Remove the marked items
+        for item in items_to_remove:
+            nav_list.remove(item)
 
     def _find_or_create_section(self, nav, section_name):
         self.logger.debug("Finding or creating navigation section: %s", section_name)

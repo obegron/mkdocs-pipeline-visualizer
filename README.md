@@ -48,6 +48,7 @@ By default, the plugin creates two sections at the root level: Pipelines and Tas
 | `plantuml_graph_direction` | **[string]** | TB(top to bottom) or LR(left to right) | `TB` | 0.1.3 |
 | `plantuml_theme` | **[string]** | Any theme listed on https://plantuml.com/theme to style e.g hacker, spacelab | `_none_` | 0.1.3 |
 | `nav_generation` | **[bool]** | Automatically generate navigation tree | `True` | 0.2.0 |
+| `nav_hide_empty_sections` | **[bool]** | Hide empty navigation sections | `False` | 0.4.0 |
 | `nav_group_tasks_by_category` | **[bool]** | Group tasks in navigation by `tekton.dev/categories` annotation | `False` | 0.3.0 |
 | `nav_section_pipelines` | **[string]** | Section name used for pipelines | `Pipelines` | 0.2.0 |
 | `nav_section_tasks` | **[string]** | Section name used for tasks | `Tasks` | 0.2.0 |

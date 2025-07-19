@@ -44,12 +44,12 @@ By default, the plugin creates two sections at the root level: Pipelines and Tas
 
 | Config parameter | Type | Description | Default | Since |
 | ---------------- | ---- | ----------- | ------- | -------------- |
-| `plantuml_graphs`| **[boolean]** | Controls if pipeline graph should be visible | `True` | 0.1.5 |
+| `plantuml_graphs`| **[bool]** | Controls if pipeline graph should be visible | `True` | 0.1.5 |
 | `plantuml_graph_direction` | **[string]** | TB(top to bottom) or LR(left to right) | `TB` | 0.1.3 |
 | `plantuml_theme` | **[string]** | Any theme listed on https://plantuml.com/theme to style e.g hacker, spacelab | `_none_` | 0.1.3 |
-| `nav_generation` | **[boolean]** | Automatically generate navigation tree | `True` | 0.2.0 |
-| `nav_hide_empty_sections` | **[boolean]** | Hide empty navigation sections | `False` | 0.4.0 |
-| `nav_group_tasks_by_category` | **[boolean]** | Group tasks in navigation by `tekton.dev/categories` annotation | `False` | 0.3.0 |
+| `nav_generation` | **[bool]** | Automatically generate navigation tree | `True` | 0.2.0 |
+| `nav_hide_empty_sections` | **[bool]** | Hide empty navigation sections | `False` | 0.4.0 |
+| `nav_group_tasks_by_category` | **[bool]** | Group tasks in navigation by `tekton.dev/categories` annotation | `False` | 0.3.0 |
 | `nav_section_pipelines` | **[string]** | Section name used for pipelines | `Pipelines` | 0.2.0 |
 | `nav_section_tasks` | **[string]** | Section name used for tasks | `Tasks` | 0.2.0 |
 | `nav_section_stepactions` | **[string]** | Section name used for stepactions | `StepActions` | 0.4.0 |
@@ -57,7 +57,7 @@ By default, the plugin creates two sections at the root level: Pipelines and Tas
 | `nav_task_grouping_offset` | **[string]** | Same as `nav_pipeline_grouping_offset` but for tasks | `None` | 0.2.0 |
 | `nav_stepaction_grouping_offset` | **[string]** | Same as `nav_pipeline_grouping_offset` but for stepactions | `None` | 0.4.0 |
 | `log_level` | **[string]** | `DEBUG INFO WARNING ERROR CRITICAL` | `INFO` | 0.2.0 |
-| `nav_category_mapping` | **[dictionary]** | Custom category name mappings | `{}` | 0.3.0 |
+| `nav_category_mapping` | **[dict]** | Custom category name mappings | `{}` | 0.3.0 |
 
 ### Example for `nav_pipeline_grouping_offset`
 

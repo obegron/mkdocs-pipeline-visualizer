@@ -44,12 +44,12 @@ By default, the plugin creates two sections at the root level: Pipelines and Tas
 
 | Config parameter | Type | Description | Default | Since |
 | ---------------- | ---- | ----------- | ------- | -------------- |
-| `plantuml_graphs`| **[bool]** | Controls if pipeline graph should be visible | `True` | 0.1.5 |
+| `plantuml_graphs`| **[boolean]** | Controls if pipeline graph should be visible | `True` | 0.1.5 |
 | `plantuml_graph_direction` | **[string]** | TB(top to bottom) or LR(left to right) | `TB` | 0.1.3 |
 | `plantuml_theme` | **[string]** | Any theme listed on https://plantuml.com/theme to style e.g hacker, spacelab | `_none_` | 0.1.3 |
-| `nav_generation` | **[bool]** | Automatically generate navigation tree | `True` | 0.2.0 |
-| `nav_hide_empty_sections` | **[bool]** | Hide empty navigation sections | `False` | 0.4.0 |
-| `nav_group_tasks_by_category` | **[bool]** | Group tasks in navigation by `tekton.dev/categories` annotation | `False` | 0.3.0 |
+| `nav_generation` | **[boolean]** | Automatically generate navigation tree | `True` | 0.2.0 |
+| `nav_hide_empty_sections` | **[boolean]** | Hide empty navigation sections | `False` | 0.4.0 |
+| `nav_group_tasks_by_category` | **[boolean]** | Group tasks in navigation by `tekton.dev/categories` annotation | `False` | 0.3.0 |
 | `nav_section_pipelines` | **[string]** | Section name used for pipelines | `Pipelines` | 0.2.0 |
 | `nav_section_tasks` | **[string]** | Section name used for tasks | `Tasks` | 0.2.0 |
 | `nav_section_stepactions` | **[string]** | Section name used for stepactions | `StepActions` | 0.4.0 |
@@ -57,7 +57,7 @@ By default, the plugin creates two sections at the root level: Pipelines and Tas
 | `nav_task_grouping_offset` | **[string]** | Same as `nav_pipeline_grouping_offset` but for tasks | `None` | 0.2.0 |
 | `nav_stepaction_grouping_offset` | **[string]** | Same as `nav_pipeline_grouping_offset` but for stepactions | `None` | 0.4.0 |
 | `log_level` | **[string]** | `DEBUG INFO WARNING ERROR CRITICAL` | `INFO` | 0.2.0 |
-| `nav_category_mapping` | **[dict]** | Custom category name mappings | `{}` | 0.3.0 |
+| `nav_category_mapping` | **[dictionary]** | Custom category name mappings | `{}` | 0.3.0 |
 
 ### Example for `nav_pipeline_grouping_offset`
 
@@ -142,71 +142,97 @@ plugins:
 ## Changelog
 
 ### 0.4.0
-* Added support for Tekton StepActions.
-* Added `nav_section_stepactions` and `nav_stepaction_grouping_offset` configuration options.
+
+#### Added
+* Support for Tekton StepActions.
+* `nav_section_stepactions` and `nav_stepaction_grouping_offset` configuration options.
 * Updated navigation generation to include StepActions.
 * Updated example configuration and documentation.
-* **Fixed:** Resolved infinite loop issue with `mkdocs serve` by preventing unnecessary file writes when content is unchanged.
+
+#### Fixed
+* Resolved infinite loop issue with `mkdocs serve` by preventing unnecessary file writes when content is unchanged.
 
 ### 0.3.0
-* Added optional support for categorization of tasks in navigation using `tekton.dev/categories` annotation
+
+#### Added
+* Optional support for categorization of tasks in navigation using `tekton.dev/categories` annotation.
 
 ### 0.2.1
 
 #### Added
-* Example in `example/`
-* Visualization for step templates in tasks
+* Example in `example/`.
+* Visualization for step templates in tasks.
 
 #### Fixed
-* Corrected typo in `plantuml_graphs` attribute name (was `plantum_graphs`)
-* Corrected typo in `nav_tasks_grouping_offset` attribute name (was `nav_task_grouping_offset`)
+* Corrected typo in `plantuml_graphs` attribute name (from `plantum_graphs`).
+* Corrected typo in `nav_task_grouping_offset` attribute name (from `nav_tasks_grouping_offset`).
 
 ### 0.2.0
 
 #### Added
-
-* Navigation generation feature with customizable sections for pipelines and tasks
-* Support for grouping pipelines and tasks in the navigation
-* Improved logging with configurable log levels
-* Version-based sorting for resources in navigation
+* Navigation generation feature with customizable sections for pipelines and tasks.
+* Support for grouping pipelines and tasks in the navigation.
+* Improved logging with configurable log levels.
+* Version-based sorting for resources in navigation.
 
 #### Changed
-
-* Improved visualization of tasks, parameters, and workspaces
-* Better handling of different script types in task steps
+* Improved visualization of tasks, parameters, and workspaces.
+* Better handling of different script types in task steps.
 
 #### Fixed
-
-* Various bug fixes and code structure improvements
+* Various bug fixes and code structure improvements.
 
 ### 0.1.8
-* remove version of tasks until there is a nicer way to present it
+
+#### Removed
+* Version of tasks from the documentation until a better presentation is available.
 
 ### 0.1.7
-* Fixed issue with backslashes (\) in usage examples.
-* Corrected example in the README.
+
+#### Fixed
+* Issue with backslashes (`\`) in usage examples.
+* Example in the README.
 
 ### 0.1.6
-* Hide workspaces for tasks when none are used
-* Show version of pipeline/task when available 
+
+#### Added
+* Version of pipeline/task when available.
+
+#### Fixed
+* Hide workspaces for tasks when none are used.
 
 ### 0.1.5
-* Remove extra `---` after tasks
-* Added sample on how to use a task in a pipeline.
-* Made PlantUML graphs optional using the boolean plantuml_graphs, defaulting to True.
-* Process only pipelines or tasks.
+
+#### Added
+* Sample on how to use a task in a pipeline.
+* `plantuml_graphs` option to make PlantUML graphs optional.
+
+#### Fixed
+* Removed extra `---` after tasks.
+* Processing of only pipelines or tasks.
 
 ### 0.1.4
-* Display all tasks in the finally block.
+
+#### Added
+* Display of all tasks in the `finally` block.
 
 ### 0.1.3
-* Added configuration for graph direction (plantuml_graph_direction), allowing TB or LR.
-* Added configuration for PlantUML theme (`plantuml_theme`) as a string (e.g., `hacker`, `spacelab`).
-* display references to configMaps
+
+#### Added
+* Configuration for graph direction (`plantuml_graph_direction`).
+* Configuration for PlantUML theme (`plantuml_theme`).
+* Display of references to `configMaps`.
 
 ### 0.1.2
-* Removed unused code.
-* Changed how default and empty values are presented.
+
+#### Changed
+* Presentation of default and empty values.
+
+#### Removed
+* Unused code.
 
 ### 0.1.1
-* Fixed issue with multidoc yaml.
+
+#### Fixed
+* Issue with multidoc YAML.
+

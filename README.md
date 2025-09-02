@@ -141,6 +141,11 @@ plugins:
 
 ## Changelog
 
+### 0.4.1
+
+#### Fixed
+* Corrected markdown code block rendering for scripts.
+
 ### 0.4.0
 
 #### Added

@@ -474,7 +474,7 @@ class PipelineVisualizer(BasePlugin):
                 # Script
                 script = step.get("script", "")
                 if script:
-                    markdown_content += f"**Script:**\n\n```\n{self._get_script_type(script)}\n{script}\n```\n\n"
+                    markdown_content += f'**Script:**\n\n```{self._get_script_type(script)}\n{script}\n```\n\n'
 
                 # Command
                 command = step.get("command", [])

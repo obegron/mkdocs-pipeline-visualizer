@@ -283,8 +283,27 @@ class PipelineVisualizer(BasePlugin):
         )
         markdown_content += self._visualize_parameters(spec.get("params", []))
         markdown_content += self._visualize_results(spec.get("results", []))
-        markdown_content += self._visualize_workspaces(spec.get("workspaces", []))
-        markdown_content += self._visualize_steps(spec.get("steps", []))
+
+        image = spec.get("image", "Not specified")
+        markdown_content += f"\n**Image:** `{image}`\n\n"
+
+        script = spec.get("script", "")
+        if script:
+            markdown_content += f'**Script:**\n\n```{self._get_script_type(script)}\n{script}\n```\n\n'
+
+        command = spec.get("command", [])
+        if command:
+            markdown_content += "**Command:**\n\n```console\n"
+            markdown_content += " ".join(command)
+            markdown_content += "\n```\n\n"
+
+        args = spec.get("args", [])
+        if args:
+            markdown_content += "**Arguments:**\n\n```shell\n"
+            markdown_content += " ".join(args)
+            markdown_content += "\n```\n\n"
+
+        markdown_content += self._visualize_environment(spec.get("env", []))
         return markdown_content
 
     def _make_graph_from_tasks(self, tasks, final):

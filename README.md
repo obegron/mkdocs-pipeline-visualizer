@@ -141,6 +141,11 @@ plugins:
 
 ## Changelog
 
+### 0.4.2
+
+#### Fixed
+* Fix rendering of StepAction
+
 ### 0.4.1
 
 #### Fixed

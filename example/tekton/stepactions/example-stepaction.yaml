@@ -15,10 +15,9 @@ spec:
   results:
     - name: output
       description: The output of the StepAction.
-  steps:
-    - name: step1
-      image: ubuntu
-      script: |
-        #!/bin/bash
-        echo "$(params.message)"
-        echo -n "$(params.message)" > $(results.output.path)
+  name: step1
+  image: ubuntu
+  script: |
+    #!/bin/bash
+    echo "$(params.message)"
+    echo -n "$(params.message)" > $(results.output.path)

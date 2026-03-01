@@ -24,6 +24,7 @@ class PipelineVisualizer(BasePlugin):
         ("nav_stepaction_grouping_offset", config_options.Type(str, default=None)),
         ("nav_group_tasks_by_category", config_options.Type(bool, default=False)),
         ("nav_category_mapping", config_options.Type(dict, default={})),
+        ("include_cli_usage", config_options.Type(bool, default=True)),
         (
             "log_level",
             config_options.Choice(
@@ -74,6 +75,7 @@ class PipelineVisualizer(BasePlugin):
         self.nav_pipeline_grouping_offset = self._parse_grouping_offset(
             self.config["nav_pipeline_grouping_offset"]
         )
+        self.include_cli_usage = self.config["include_cli_usage"]
         self.logger.info(
             "PipelineVisualizer plugin initialized with configuration: %s", self.config
         )
@@ -288,20 +290,13 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += f"\n**Image:** `{image}`\n\n"
 
         script = spec.get("script", "")
-        if script:
-            markdown_content += f'**Script:**\n\n```{self._get_script_type(script)}\n{script}\n```\n\n'
+        markdown_content += self._render_script(script)
 
         command = spec.get("command", [])
-        if command:
-            markdown_content += "**Command:**\n\n```console\n"
-            markdown_content += " ".join(command)
-            markdown_content += "\n```\n\n"
+        markdown_content += self._render_command(command)
 
         args = spec.get("args", [])
-        if args:
-            markdown_content += "**Arguments:**\n\n```shell\n"
-            markdown_content += " ".join(args)
-            markdown_content += "\n```\n\n"
+        markdown_content += self._render_args(args)
 
         markdown_content += self._visualize_environment(spec.get("env", []))
         return markdown_content
@@ -422,22 +417,20 @@ class PipelineVisualizer(BasePlugin):
             # Task Reference with relative link if available
             task_ref = task.get("taskRef", {})
             ref_name = task_ref.get("name", "Not specified")
-            if ref_name in self._task_paths:
-                target_path = self._task_paths[ref_name]["path"]
-                relative_path = self._get_relative_path(self.current_file.src_path, target_path)
-                markdown_content += f"**Task Reference:** [`{ref_name}`]({relative_path})\n\n"
-            else:
-                markdown_content += f"**Task Reference:** `{ref_name}`\n\n"
+            markdown_content += self._render_resource_reference(
+                label="Task Reference",
+                ref_name=ref_name,
+                resource_paths=self._task_paths,
+            )
 
             step_ref = task.get("ref", {})
             if step_ref:
                 ref_name = step_ref.get("name", "Not specified")
-                if ref_name in self._stepaction_paths:
-                    target_path = self._stepaction_paths[ref_name]["path"]
-                    relative_path = self._get_relative_path(self.current_file.src_path, target_path)
-                    markdown_content += f"**StepAction Reference:** [`{ref_name}`]({relative_path})\n\n"
-                else:
-                    markdown_content += f"**StepAction Reference:** `{ref_name}`\n\n"
+                markdown_content += self._render_resource_reference(
+                    label="StepAction Reference",
+                    ref_name=ref_name,
+                    resource_paths=self._stepaction_paths,
+                )
             
             markdown_content += self._visualize_common_elements(task)
 
@@ -479,12 +472,11 @@ class PipelineVisualizer(BasePlugin):
             step_ref = step.get("ref", {})
             if step_ref:
                 ref_name = step_ref.get("name", "Not specified")
-                if ref_name in self._stepaction_paths:
-                    target_path = self._stepaction_paths[ref_name]["path"]
-                    relative_path = self._get_relative_path(self.current_file.src_path, target_path)
-                    markdown_content += f"**StepAction Reference:** [`{ref_name}`]({relative_path})\n\n"
-                else:
-                    markdown_content += f"**StepAction Reference:** `{ref_name}`\n\n"
+                markdown_content += self._render_resource_reference(
+                    label="StepAction Reference",
+                    ref_name=ref_name,
+                    resource_paths=self._stepaction_paths,
+                )
             else:
                 # Image
                 image = step.get("image", "Not specified")
@@ -492,22 +484,15 @@ class PipelineVisualizer(BasePlugin):
 
                 # Script
                 script = step.get("script", "")
-                if script:
-                    markdown_content += f'**Script:**\n\n```{self._get_script_type(script)}\n{script}\n```\n\n'
+                markdown_content += self._render_script(script)
 
                 # Command
                 command = step.get("command", [])
-                if command:
-                    markdown_content += "**Command:**\n\n```console\n"
-                    markdown_content += " ".join(command)
-                    markdown_content += "\n```\n\n"
+                markdown_content += self._render_command(command)
 
                 # Args
                 args = step.get("args", [])
-                if args:
-                    markdown_content += "**Arguments:**\n\n```shell\n"
-                    markdown_content += " ".join(args)
-                    markdown_content += "\n```\n\n"
+                markdown_content += self._render_args(args)
 
             # Environment Variables
             markdown_content += self._visualize_environment(step.get("env", []))
@@ -584,46 +569,107 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += "\n"
         return markdown_content
 
-    def _visualize_usage(self, metadata, spec):
-        task_name = metadata.get("name", "Unnamed Task")
-        task_display_name = metadata.get("annotations", {}).get(
-            "tekton.dev/displayName", task_name
+    def _visualize_usage(self, metadata, spec, kind="task"):
+        resource_name = metadata.get("name", "Unnamed")
+        display_name = metadata.get("annotations", {}).get(
+            "tekton.dev/displayName", resource_name
         )
 
-        usage_yaml = {
-            "name": task_display_name,
-            "taskRef": {"name": task_name},
-            "runAfter": ["<TASK_NAME>"],
-            "params": [
-                {"name": param["name"], "value": "<VALUE>"}
-                for param in spec.get("params", [])
-                if "default" not in param
-            ],
-            "workspaces": [
-                {"name": ws["name"], "workspace": "<WORKSPACE_NAME>"}
-                for ws in spec.get("workspaces", [])
-                if not ws.get("optional", False)
-            ],
-        }
+        params = [
+            {"name": param["name"], "value": "<VALUE>"}
+            for param in spec.get("params", [])
+            if "default" not in param
+        ]
+        
+        workspaces = [
+            {"name": ws["name"], "workspace": "<WORKSPACE_NAME>"}
+            for ws in spec.get("workspaces", [])
+            if not ws.get("optional", False)
+        ]
 
-        if not usage_yaml.get("workspaces", []):
-            usage_yaml.pop("workspaces")
+        if kind == "pipeline":
+            usage_yaml = {
+                "apiVersion": "tekton.dev/v1beta1",
+                "kind": "PipelineRun",
+                "metadata": {
+                    "generateName": f"{resource_name}-run-"
+                },
+                "spec": {
+                    "pipelineRef": {
+                        "name": resource_name
+                    },
+                    "params": params,
+                    "workspaces": workspaces
+                }
+            }
+        else:
+            # Default to Task usage (TaskRun or Pipeline task)
+            usage_yaml = {
+                "name": display_name,
+                "taskRef": {"name": resource_name},
+                "runAfter": ["<TASK_NAME>"],
+                "params": params,
+                "workspaces": workspaces,
+            }
+
+        if not usage_yaml.get("spec", {}).get("workspaces", []) and not usage_yaml.get("workspaces", []):
+             if "spec" in usage_yaml and "workspaces" in usage_yaml["spec"]:
+                 del usage_yaml["spec"]["workspaces"]
+             elif "workspaces" in usage_yaml:
+                 del usage_yaml["workspaces"]
+
+        if not usage_yaml.get("spec", {}).get("params", []) and not usage_yaml.get("params", []):
+             if "spec" in usage_yaml and "params" in usage_yaml["spec"]:
+                 del usage_yaml["spec"]["params"]
+             elif "params" in usage_yaml:
+                 del usage_yaml["params"]
 
         yaml_str = yaml.dump([usage_yaml], default_flow_style=False)
         usage = "\n".join("    " + line for line in yaml_str.splitlines())
-        return f"""
+        content = f"""
 ## Usage
 
-This is the minimum configuration required to use the `{task_name}` task in your pipeline.
+This is the minimum configuration required to use the `{resource_name}` {kind} in your project.
 
 ```yaml
 {usage}
 ```
-
-Placeholders should be replaced with the appropriate values for your specific use case. Refer to the task's documentation for more details on the available parameters and workspaces.
-The `runAfter` parameter is optional and only needed if you want to specify task dependencies for flow control.
-
 """
+        if self.include_cli_usage:
+            content += self._generate_cli_command(metadata, spec, kind)
+
+        content += f"""
+Placeholders should be replaced with the appropriate values for your specific use case. Refer to the {kind}'s documentation for more details on the available parameters and workspaces.
+"""
+        if kind == "task":
+            content += "The `runAfter` parameter is optional and only needed if you want to specify task dependencies for flow control.\n"
+            
+        content += "\n"
+        return content
+
+    def _generate_cli_command(self, metadata, spec, kind="task"):
+        name = metadata.get("name", "unnamed")
+        
+        cmd = f"tkn {kind} start {name}"
+        
+        # Params
+        params = spec.get("params", [])
+        for param in params:
+            p_name = param.get("name")
+            if "default" in param:
+                continue 
+            
+            cmd += f" \\\n  -p {p_name}=<{p_name.upper()}>"
+
+        # Workspaces
+        workspaces = spec.get("workspaces", [])
+        for ws in workspaces:
+            if ws.get("optional", False):
+                continue
+            w_name = ws.get("name")
+            cmd += f" \\\n  -w {w_name}=<{w_name.upper()}>"
+            
+        return f"\n**CLI:**\n\n```bash\n{cmd}\n```\n"
 
     def _format_value(self, value):
         if isinstance(value, list):
@@ -639,6 +685,32 @@ The `runAfter` parameter is optional and only needed if you want to specify task
             col_headers += f" {col} |"
             under_line += f" { '-' * len(col) } |"
         return f"{header}\n\n{col_headers}\n{under_line}\n"
+
+    def _render_script(self, script):
+        if not script:
+            return ""
+        return f'**Script:**\n\n```{self._get_script_type(script)}\n{script}\n```\n\n'
+
+    def _render_command(self, command):
+        if not command:
+            return ""
+        rendered = " ".join(command)
+        return f"**Command:**\n\n```console\n{rendered}\n```\n\n"
+
+    def _render_args(self, args):
+        if not args:
+            return ""
+        rendered = " ".join(args)
+        return f"**Arguments:**\n\n```shell\n{rendered}\n```\n\n"
+
+    def _render_resource_reference(self, label, ref_name, resource_paths):
+        if ref_name in resource_paths:
+            target_path = resource_paths[ref_name]["path"]
+            relative_path = self._get_relative_path(
+                self.current_file.src_path, target_path
+            )
+            return f"**{label}:** [`{ref_name}`]({relative_path})\n\n"
+        return f"**{label}:** `{ref_name}`\n\n"
 
     def _get_script_type(self, script):
 

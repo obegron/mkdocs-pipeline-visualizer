@@ -5,7 +5,23 @@ import hashlib
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import File, Files
 from mkdocs.config import config_options
-from packaging import version
+from .rendering_utils import (
+    format_value,
+    get_script_type,
+    render_args,
+    render_command,
+    render_resource_reference,
+    render_script,
+    table_with_header,
+)
+from .navigation_utils import (
+    add_to_nav,
+    find_or_create_section,
+    get_group,
+    get_relative_path,
+    remove_empty_sections,
+    semantic_version_key,
+)
 
 
 class PipelineVisualizer(BasePlugin):
@@ -39,7 +55,6 @@ class PipelineVisualizer(BasePlugin):
         self._task_paths = {}  # Store relative paths for tasks
         self._stepaction_paths = {}  # Store relative paths for stepactions
         self.in_serve_mode = False
-        self.current_file = None  # Track current file being processed
 
     def on_config(self, config):
         self.nav_task_grouping_offset = self._parse_grouping_offset(
@@ -155,10 +170,7 @@ class PipelineVisualizer(BasePlugin):
         # Sort resources to ensure tasks are processed first
         resources.sort(key=lambda x: x.get("kind", "") != "Task")
 
-        # Store current file for relative path calculations
-        self.current_file = file
-
-        content = self._generate_markdown_content(resources)
+        content = self._generate_markdown_content(resources, file.src_path)
         new_file = self._create_markdown_file(file, config, content)
 
         if new_file:
@@ -222,7 +234,7 @@ class PipelineVisualizer(BasePlugin):
             config["site_dir"],
         )
 
-    def _generate_markdown_content(self, resources):
+    def _generate_markdown_content(self, resources, source_path):
         self.logger.debug(
             "Generating Markdown content for %d resources", len(resources)
         )
@@ -241,16 +253,16 @@ class PipelineVisualizer(BasePlugin):
             markdown_content += f"# {kind}: {resource_name}{resource_version}\n"
 
             if kind.lower() == "pipeline":
-                markdown_content += self._visualize_pipeline(spec)
+                markdown_content += self._visualize_pipeline(spec, source_path)
             elif kind.lower() == "task":
-                markdown_content += self._visualize_task(metadata, spec)
+                markdown_content += self._visualize_task(metadata, spec, source_path)
             elif kind.lower() == "stepaction":
                 markdown_content += self._visualize_stepaction(metadata, spec)
 
             markdown_content += "\n---\n\n"
         return markdown_content
 
-    def _visualize_pipeline(self, spec):
+    def _visualize_pipeline(self, spec, source_path):
         self.logger.debug("Visualizing pipeline")
         markdown_content = ""
         tasks = spec.get("tasks", [])
@@ -259,13 +271,13 @@ class PipelineVisualizer(BasePlugin):
             markdown_content += self._make_graph_from_tasks(tasks, final)
         markdown_content += self._visualize_parameters(spec.get("params", []))
         markdown_content += self._visualize_workspaces(spec.get("workspaces", []))
-        markdown_content += self._visualize_tasks(tasks)
+        markdown_content += self._visualize_tasks(tasks, source_path)
         if final:
             markdown_content += "## Finally\n\n"
-            markdown_content += self._visualize_tasks(final)
+            markdown_content += self._visualize_tasks(final, source_path)
         return markdown_content
 
-    def _visualize_task(self, metadata, spec):
+    def _visualize_task(self, metadata, spec, source_path):
         self.logger.debug("Visualizing task: %s", metadata.get("name", "Unnamed Task"))
         markdown_content = (
             f"## Description\n>{spec.get('description','No description')}\n"
@@ -274,7 +286,7 @@ class PipelineVisualizer(BasePlugin):
         markdown_content += self._visualize_results(spec.get("results", []))
         markdown_content += self._visualize_workspaces(spec.get("workspaces", []))
         markdown_content += self._visualize_step_template(spec.get("stepTemplate", []))
-        markdown_content += self._visualize_steps(spec.get("steps", []))
+        markdown_content += self._visualize_steps(spec.get("steps", []), source_path)
         markdown_content += self._visualize_usage(metadata, spec)
         return markdown_content
 
@@ -408,7 +420,7 @@ class PipelineVisualizer(BasePlugin):
             markdown_content += f"| `{name}` | {description} | { optional } |\n"
         return markdown_content + "\n"
 
-    def _visualize_tasks(self, tasks):
+    def _visualize_tasks(self, tasks, source_path):
         markdown_content = "## Tasks\n\n"
         for task in tasks:
             task_name = task.get("name", "Unnamed Task")
@@ -421,6 +433,7 @@ class PipelineVisualizer(BasePlugin):
                 label="Task Reference",
                 ref_name=ref_name,
                 resource_paths=self._task_paths,
+                source_path=source_path,
             )
 
             step_ref = task.get("ref", {})
@@ -430,6 +443,7 @@ class PipelineVisualizer(BasePlugin):
                     label="StepAction Reference",
                     ref_name=ref_name,
                     resource_paths=self._stepaction_paths,
+                    source_path=source_path,
                 )
             
             markdown_content += self._visualize_common_elements(task)
@@ -461,7 +475,7 @@ class PipelineVisualizer(BasePlugin):
             
         return markdown_content
 
-    def _visualize_steps(self, steps):
+    def _visualize_steps(self, steps, source_path):
         markdown_content = "## Steps\n\n"
         for i, step in enumerate(steps, 1):
             step_name = step.get("name", f"Step {i}")
@@ -476,6 +490,7 @@ class PipelineVisualizer(BasePlugin):
                     label="StepAction Reference",
                     ref_name=ref_name,
                     resource_paths=self._stepaction_paths,
+                    source_path=source_path,
                 )
             else:
                 # Image
@@ -672,66 +687,31 @@ Placeholders should be replaced with the appropriate values for your specific us
         return f"\n**CLI:**\n\n```bash\n{cmd}\n```\n"
 
     def _format_value(self, value):
-        if isinstance(value, list):
-            value = "<ul>" + "".join(f"<li>`{v}`</li>" for v in value) + "</ul>"
-        elif isinstance(value, str) and "\n" in value:
-            value = value.replace("\n", "<br>")
-        return value
+        return format_value(value)
 
     def _table_with_header(self, header, table_headers):
-        col_headers = "|"
-        under_line = "|"
-        for col in table_headers:
-            col_headers += f" {col} |"
-            under_line += f" { '-' * len(col) } |"
-        return f"{header}\n\n{col_headers}\n{under_line}\n"
+        return table_with_header(header, table_headers)
 
     def _render_script(self, script):
-        if not script:
-            return ""
-        return f'**Script:**\n\n```{self._get_script_type(script)}\n{script}\n```\n\n'
+        return render_script(script)
 
     def _render_command(self, command):
-        if not command:
-            return ""
-        rendered = " ".join(command)
-        return f"**Command:**\n\n```console\n{rendered}\n```\n\n"
+        return render_command(command)
 
     def _render_args(self, args):
-        if not args:
-            return ""
-        rendered = " ".join(args)
-        return f"**Arguments:**\n\n```shell\n{rendered}\n```\n\n"
+        return render_args(args)
 
-    def _render_resource_reference(self, label, ref_name, resource_paths):
-        if ref_name in resource_paths:
-            target_path = resource_paths[ref_name]["path"]
-            relative_path = self._get_relative_path(
-                self.current_file.src_path, target_path
-            )
-            return f"**{label}:** [`{ref_name}`]({relative_path})\n\n"
-        return f"**{label}:** `{ref_name}`\n\n"
+    def _render_resource_reference(self, label, ref_name, resource_paths, source_path):
+        return render_resource_reference(
+            label=label,
+            ref_name=ref_name,
+            resource_paths=resource_paths,
+            from_path=source_path,
+            relative_path_fn=self._get_relative_path,
+        )
 
     def _get_script_type(self, script):
-
-        shebang_dict = {
-            "python": "python",
-            "ruby": "ruby",
-            "perl": "perl",
-            "node": "javascript",
-            "php": "php",
-            "bash": "bash",
-            "pwsh": "powershell",
-            "lua": "lua",
-        }
-        lines = script.splitlines()
-        if lines and lines[0].startswith("#!"):
-            first_line = lines[0]
-            for key in shebang_dict:
-                if key in first_line:
-                    return shebang_dict[key]
-
-        return "shell"
+        return get_script_type(script)
 
     def _get_task_categories(self, metadata):
         """Extract categories from task metadata"""
@@ -786,31 +766,13 @@ Placeholders should be replaced with the appropriate values for your specific us
 
     def _semantic_version_key(self, version_str):
         """Convert version string to comparable tuple"""
-        try:
-            return version.parse(version_str or "0.0.0")
-        except version.InvalidVersion:
-            return version.parse("0.0.0")
+        return semantic_version_key(version_str)
 
     def _add_to_nav(self, nav_section, resources):
         if not isinstance(resources, dict):
             self.logger.error("Resources must be a dictionary, got %s", type(resources))
             return
-
-        for resource_name, versions in sorted(resources.items()):
-            sorted_versions = sorted(
-                [(v[0], v[1]) for v in versions],
-                key=lambda x: self._semantic_version_key(x[0]),
-                reverse=True,
-            )
-
-            if len(sorted_versions) == 1:
-                nav_section.append({resource_name: sorted_versions[0][1]})
-            else:
-                version_dict = {}
-                for ver, path in sorted_versions:
-                    version_name = f"{resource_name} v{ver}" if ver else resource_name
-                    version_dict[version_name] = path
-                nav_section.append({resource_name: version_dict})
+        add_to_nav(nav_section, resources)
 
     def _update_navigation(self, nav, pipeline_versions, task_versions, stepaction_versions):
         """Update navigation structure"""
@@ -900,47 +862,11 @@ Placeholders should be replaced with the appropriate values for your specific us
 
     def _remove_empty_sections(self, nav_list):
         """Recursively remove empty sections from a navigation list."""
-        items_to_remove = []
-        for item in nav_list:
-            if isinstance(item, dict):
-                for key, value in item.items():
-                    if isinstance(value, list):
-                        # Recursively clean the sub-list
-                        self._remove_empty_sections(value)
-                        # If the sub-list is now empty, mark the parent dict for removal
-                        if not value:
-                            items_to_remove.append(item)
-
-        # Remove the marked items
-        for item in items_to_remove:
-            nav_list.remove(item)
+        remove_empty_sections(nav_list)
 
     def _find_or_create_section(self, nav, section_name):
         self.logger.debug("Finding or creating navigation section: %s", section_name)
-
-        def find_section_recursive(nav_item, section_name):
-            if isinstance(nav_item, list):
-                for item in nav_item:
-                    result = find_section_recursive(item, section_name)
-                    if result is not None:
-                        return result
-            elif isinstance(nav_item, dict):
-                for key, value in nav_item.items():
-                    if key == section_name and isinstance(value, list) and not value:
-                        return value
-                    result = find_section_recursive(value, section_name)
-                    if result is not None:
-                        return result
-            return None
-
-        result = find_section_recursive(nav, section_name)
-
-        if result is not None:
-            return result
-
-        new_section = {section_name: []}
-        nav.append(new_section)
-        return new_section[section_name]
+        return find_or_create_section(nav, section_name)
 
     def _find_or_create_nested_dict(self, current_level, path_parts):
         self.logger.debug(
@@ -961,60 +887,8 @@ Placeholders should be replaced with the appropriate values for your specific us
 
     def _get_group(self, path, offset):
         """Extract group from path based on offset"""
-        if not offset:
-            return ""
-
-        # Normalize path separators to forward slashes
-        path = path.replace("\\", "/")
-        parts = os.path.dirname(path).split("/")
-
-        if len(parts) <= 1:
-            return ""
-
-        start, end = offset
-        if end is None:
-            end = len(parts)
-
-        # Adjust negative end index
-        if end < 0:
-            end = len(parts) + end
-
-        # Validate indices
-        if start >= len(parts) or end > len(parts) or start < 0:
-            return ""
-
-        # Keep full path structure between start and end
-        return "/".join(parts[start:end])
+        return get_group(path, offset)
 
     def _get_relative_path(self, from_path, to_path):
         """Generate relative path between two documents"""
-        # Normalize paths to use forward slashes
-        from_path = from_path.replace("\\", "/").rstrip("/")
-        to_path = to_path.replace("\\", "/").rstrip("/")
-
-        # Split paths into components
-        from_parts = from_path.split("/")
-        to_parts = to_path.split("/")
-
-        # Remove filenames to work with directories
-        from_dir = from_parts[:-1]
-        to_dir = to_parts[:-1]
-
-        # Calculate common prefix length
-        common_length = 0
-        for f, t in zip(from_dir, to_dir):
-            if f != t:
-                break
-            common_length += 1
-
-        # Build relative path with .md extension
-        up_levels = len(from_dir) - common_length
-        remaining_path = to_parts[common_length:]
-
-        relative_path = "../" * up_levels + "/".join(remaining_path)
-
-        # Ensure path ends with .md
-        if not relative_path.endswith(".md"):
-            relative_path += ".md"
-
-        return relative_path
+        return get_relative_path(from_path, to_path)

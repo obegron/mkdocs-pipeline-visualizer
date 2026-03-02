@@ -1,15 +1,22 @@
 import os
 from packaging import version
+from typing import Any
+
+VersionPath = tuple[str, str]
+VersionList = list[VersionPath]
+ResourceVersions = dict[str, VersionList]
+NavItem = dict[str, Any]
+NavList = list[NavItem]
 
 
-def semantic_version_key(version_str):
+def semantic_version_key(version_str: str) -> version.Version:
     try:
         return version.parse(version_str or "0.0.0")
     except version.InvalidVersion:
         return version.parse("0.0.0")
 
 
-def add_to_nav(nav_section, resources):
+def add_to_nav(nav_section: NavList, resources: ResourceVersions) -> None:
     for resource_name, versions in sorted(resources.items()):
         sorted_versions = sorted(
             [(v[0], v[1]) for v in versions],
@@ -27,7 +34,7 @@ def add_to_nav(nav_section, resources):
             nav_section.append({resource_name: version_dict})
 
 
-def remove_empty_sections(nav_list):
+def remove_empty_sections(nav_list: NavList) -> None:
     items_to_remove = []
     for item in nav_list:
         if isinstance(item, dict):
@@ -41,8 +48,8 @@ def remove_empty_sections(nav_list):
         nav_list.remove(item)
 
 
-def find_or_create_section(nav, section_name):
-    def find_section_recursive(nav_item, section_name):
+def find_or_create_section(nav: NavList, section_name: str) -> NavList:
+    def find_section_recursive(nav_item: Any, section_name: str) -> NavList | None:
         if isinstance(nav_item, list):
             for item in nav_item:
                 result = find_section_recursive(item, section_name)
@@ -66,7 +73,7 @@ def find_or_create_section(nav, section_name):
     return new_section[section_name]
 
 
-def get_group(path, offset):
+def get_group(path: str, offset: tuple[int, int] | None) -> str:
     if not offset:
         return ""
 
@@ -89,7 +96,7 @@ def get_group(path, offset):
     return "/".join(parts[start:end])
 
 
-def get_relative_path(from_path, to_path):
+def get_relative_path(from_path: str, to_path: str) -> str:
     from_path = from_path.replace("\\", "/").rstrip("/")
     to_path = to_path.replace("\\", "/").rstrip("/")
 

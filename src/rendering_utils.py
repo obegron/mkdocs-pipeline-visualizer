@@ -1,4 +1,10 @@
-def format_value(value):
+from collections.abc import Callable, Sequence
+from typing import Any
+
+ResourcePathMap = dict[str, dict[str, str]]
+
+
+def format_value(value: Any) -> Any:
     if isinstance(value, list):
         value = "<ul>" + "".join(f"<li>`{v}`</li>" for v in value) + "</ul>"
     elif isinstance(value, str) and "\n" in value:
@@ -6,7 +12,7 @@ def format_value(value):
     return value
 
 
-def table_with_header(header, table_headers):
+def table_with_header(header: str, table_headers: Sequence[str]) -> str:
     col_headers = "|"
     under_line = "|"
     for col in table_headers:
@@ -15,7 +21,7 @@ def table_with_header(header, table_headers):
     return f"{header}\n\n{col_headers}\n{under_line}\n"
 
 
-def get_script_type(script):
+def get_script_type(script: str) -> str:
     shebang_dict = {
         "python": "python",
         "ruby": "ruby",
@@ -36,27 +42,33 @@ def get_script_type(script):
     return "shell"
 
 
-def render_script(script):
+def render_script(script: str) -> str:
     if not script:
         return ""
     return f"**Script:**\n\n```{get_script_type(script)}\n{script}\n```\n\n"
 
 
-def render_command(command):
+def render_command(command: Sequence[str]) -> str:
     if not command:
         return ""
     rendered = " ".join(command)
     return f"**Command:**\n\n```console\n{rendered}\n```\n\n"
 
 
-def render_args(args):
+def render_args(args: Sequence[str]) -> str:
     if not args:
         return ""
     rendered = " ".join(args)
     return f"**Arguments:**\n\n```shell\n{rendered}\n```\n\n"
 
 
-def render_resource_reference(label, ref_name, resource_paths, from_path, relative_path_fn):
+def render_resource_reference(
+    label: str,
+    ref_name: str,
+    resource_paths: ResourcePathMap,
+    from_path: str,
+    relative_path_fn: Callable[[str, str], str],
+) -> str:
     if ref_name in resource_paths:
         target_path = resource_paths[ref_name]["path"]
         relative_path = relative_path_fn(from_path, target_path)

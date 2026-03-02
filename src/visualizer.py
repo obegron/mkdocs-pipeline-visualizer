@@ -2,6 +2,7 @@ import os
 import yaml
 import logging
 import hashlib
+from typing import Any
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import File, Files
 from mkdocs.config import config_options
@@ -15,6 +16,10 @@ from .navigation_utils import (
     remove_empty_sections,
     semantic_version_key,
 )
+
+KIND_PIPELINE = "pipeline"
+KIND_TASK = "task"
+KIND_STEPACTION = "stepaction"
 
 
 class PipelineVisualizer(BasePlugin):
@@ -42,14 +47,12 @@ class PipelineVisualizer(BasePlugin):
         ),
     )
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = logging.getLogger("mkdocs.plugins.pipeline_visualizer")
-        self._processed_files = {}
-        self._task_paths = {}  # Store relative paths for tasks
-        self._stepaction_paths = {}  # Store relative paths for stepactions
-        self.in_serve_mode = False
+        self._task_paths: dict[str, dict[str, str]] = {}
+        self._stepaction_paths: dict[str, dict[str, str]] = {}
 
-    def on_config(self, config):
+    def on_config(self, config: dict[str, Any]) -> None:
         self.nav_task_grouping_offset = self._parse_grouping_offset(
             self.config["nav_task_grouping_offset"]
         )
@@ -88,7 +91,7 @@ class PipelineVisualizer(BasePlugin):
             "PipelineVisualizer plugin initialized with configuration: %s", self.config
         )
 
-    def _parse_grouping_offset(self, offset_str):
+    def _parse_grouping_offset(self, offset_str: str | None) -> tuple[int, int] | None:
         if offset_str is None:
             return None
         try:
@@ -108,42 +111,51 @@ class PipelineVisualizer(BasePlugin):
             return (start, end)
         except ValueError:
             self.logger.error(
-                f"Invalid grouping offset format: {offset_str}. Using default (None)."
+                "Invalid grouping offset format: %s. Using default (None).",
+                offset_str,
             )
             return None
 
-    def on_files(self, files, config):
-        pipeline_versions = {}
-        task_versions = {}
-        stepaction_versions = {}
-        new_files = []
+    def on_files(self, files: Files, config: dict[str, Any]) -> Files:
+        pipeline_versions: dict[str, dict[str, list[tuple[str, str]]]] = {}
+        task_versions: dict[str, dict[str, Any]] = {}
+        stepaction_versions: dict[str, list[tuple[str, str]]] = {}
+        new_files: list[File] = []
+        yaml_files = [file for file in files if file.src_path.endswith(".yaml")]
+        resources_by_path = self._collect_yaml_resources(yaml_files)
 
         # Process tasks and stepactions first to build task reference map
-        for file in files:
-            if not file.src_path.endswith(".yaml"):
+        for file in yaml_files:
+            resources = resources_by_path.get(file.src_path)
+            if not resources:
                 continue
-
-            resources = self._load_yaml(file.abs_src_path)
-            if resources and any(
-                r.get("kind", "").lower() in ["task", "stepaction"] for r in resources
-            ):
+            kinds = self._resource_kinds(resources)
+            if KIND_TASK in kinds or KIND_STEPACTION in kinds:
                 new_file = self._process_yaml_file(
-                    file, config, pipeline_versions, task_versions, stepaction_versions
+                    file,
+                    config,
+                    pipeline_versions,
+                    task_versions,
+                    stepaction_versions,
+                    resources,
                 )
                 if new_file:
                     new_files.append(new_file)
 
         # Then process pipelines with complete task reference map
-        for file in files:
-            if not file.src_path.endswith(".yaml"):
+        for file in yaml_files:
+            resources = resources_by_path.get(file.src_path)
+            if not resources:
                 continue
-
-            resources = self._load_yaml(file.abs_src_path)
-            if resources and any(
-                r.get("kind", "").lower() == "pipeline" for r in resources
-            ):
+            kinds = self._resource_kinds(resources)
+            if KIND_PIPELINE in kinds:
                 new_file = self._process_yaml_file(
-                    file, config, pipeline_versions, task_versions, stepaction_versions
+                    file,
+                    config,
+                    pipeline_versions,
+                    task_versions,
+                    stepaction_versions,
+                    resources,
                 )
                 if new_file:
                     new_files.append(new_file)
@@ -153,15 +165,40 @@ class PipelineVisualizer(BasePlugin):
 
         return Files(list(files) + [f for f in new_files if f is not None])
 
-    def _process_yaml_file(self, file, config, pipeline_versions, task_versions, stepaction_versions):
+    def _collect_yaml_resources(
+        self, yaml_files: list[File]
+    ) -> dict[str, list[dict[str, Any]]]:
+        resources_by_path: dict[str, list[dict[str, Any]]] = {}
+        for file in yaml_files:
+            resources = self._load_yaml(file.abs_src_path)
+            if resources:
+                resources_by_path[file.src_path] = resources
+        return resources_by_path
+
+    def _resource_kinds(self, resources: list[dict[str, Any]]) -> set[str]:
+        return {
+            resource.get("kind", "").lower()
+            for resource in resources
+            if isinstance(resource, dict)
+        }
+
+    def _process_yaml_file(
+        self,
+        file: File,
+        config: dict[str, Any],
+        pipeline_versions: dict[str, dict[str, list[tuple[str, str]]]],
+        task_versions: dict[str, dict[str, Any]],
+        stepaction_versions: dict[str, list[tuple[str, str]]],
+        resources: list[dict[str, Any]] | None = None,
+    ) -> File | None:
         """Process YAML file containing one or more resources"""
-        resources = self._load_yaml(file.abs_src_path)
+        resources = resources if resources is not None else self._load_yaml(file.abs_src_path)
         if not resources:
             self.logger.warning("Failed to load YAML file: %s", file.abs_src_path)
             return None
 
         # Sort resources to ensure tasks are processed first
-        resources.sort(key=lambda x: x.get("kind", "") != "Task")
+        resources.sort(key=lambda x: x.get("kind", "").lower() != "task")
 
         content = self._generate_markdown_content(resources, file.src_path)
         new_file = self._create_markdown_file(file, config, content)
@@ -169,17 +206,17 @@ class PipelineVisualizer(BasePlugin):
         if new_file:
             for resource in resources:
                 kind = resource.get("kind", "").lower()
-                if kind in ["pipeline", "task", "stepaction"]:
+                if kind in [KIND_PIPELINE, KIND_TASK, KIND_STEPACTION]:
                     self._add_to_versions(
                         resource, new_file, kind, pipeline_versions, task_versions, stepaction_versions
                     )
 
         return new_file
 
-    def _load_yaml(self, file_path):
+    def _load_yaml(self, file_path: str) -> list[dict[str, Any]] | None:
         """Load YAML file, supporting multiple documents"""
         try:
-            with open(file_path, "r") as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read().strip()
                 if not content:
                     return None
@@ -189,8 +226,17 @@ class PipelineVisualizer(BasePlugin):
         except yaml.YAMLError as e:
             self.logger.error("Error parsing YAML file %s: %s", file_path, e)
             return None
+        except OSError as e:
+            self.logger.error("Error reading YAML file %s: %s", file_path, e)
+            return None
 
-    def _create_markdown_file(self, original_file, config, content, suffix=""):
+    def _create_markdown_file(
+        self,
+        original_file: File,
+        config: dict[str, Any],
+        content: str,
+        suffix: str = "",
+    ) -> File:
         """Create markdown file with optional suffix for multi-doc files"""
         base_path = original_file.abs_src_path.replace(".yaml", f"{suffix}.md")
         os.makedirs(os.path.dirname(base_path), exist_ok=True)
@@ -199,7 +245,7 @@ class PipelineVisualizer(BasePlugin):
 
         # Check if file exists and content is the same
         if os.path.exists(base_path):
-            with open(base_path, "r") as f:
+            with open(base_path, "r", encoding="utf-8") as f:
                 existing_content = f.read()
                 existing_content_hash = hashlib.md5(
                     existing_content.encode("utf-8")
@@ -216,7 +262,7 @@ class PipelineVisualizer(BasePlugin):
                         config["site_dir"],
                     )
 
-        with open(base_path, "w") as f:
+        with open(base_path, "w", encoding="utf-8") as f:
             f.write(content)
 
         self.logger.debug("Created Markdown file: %s", base_path)
@@ -227,7 +273,7 @@ class PipelineVisualizer(BasePlugin):
             config["site_dir"],
         )
 
-    def _renderer(self, source_path):
+    def _renderer(self, source_path: str) -> MarkdownRenderer:
         return MarkdownRenderer(
             logger=self.logger,
             plantuml_graphs=getattr(self, "plantuml_graphs", True),
@@ -242,38 +288,55 @@ class PipelineVisualizer(BasePlugin):
             source_path=source_path,
         )
 
-    def _navigation_builder(self):
+    def _navigation_builder(self) -> NavigationBuilder:
+        plugin_config = getattr(self, "config", {})
         return NavigationBuilder(
             logger=self.logger,
-            nav_section_pipelines=self.nav_section_pipelines,
-            nav_section_tasks=self.nav_section_tasks,
-            nav_section_stepactions=self.nav_section_stepactions,
-            nav_group_tasks_by_category=self.nav_group_tasks_by_category,
-            nav_category_mapping=self.config.get("nav_category_mapping", {}),
-            nav_hide_empty_sections=self.nav_hide_empty_sections,
+            nav_section_pipelines=getattr(self, "nav_section_pipelines", "Pipelines"),
+            nav_section_tasks=getattr(self, "nav_section_tasks", "Tasks"),
+            nav_section_stepactions=getattr(
+                self, "nav_section_stepactions", "StepActions"
+            ),
+            nav_group_tasks_by_category=getattr(
+                self, "nav_group_tasks_by_category", False
+            ),
+            nav_category_mapping=plugin_config.get("nav_category_mapping", {}),
+            nav_hide_empty_sections=getattr(self, "nav_hide_empty_sections", False),
         )
 
-    def _generate_markdown_content(self, resources, source_path):
+    def _generate_markdown_content(
+        self, resources: list[dict[str, Any]], source_path: str
+    ) -> str:
         return self._renderer(source_path).generate_markdown_content(resources)
 
-    def _generate_cli_command(self, metadata, spec, kind="task"):
+    def _generate_cli_command(
+        self, metadata: dict[str, Any], spec: dict[str, Any], kind: str = "task"
+    ) -> str:
         return self._renderer("").generate_cli_command(metadata, spec, kind)
 
-    def _get_task_categories(self, metadata):
+    def _get_task_categories(self, metadata: dict[str, Any]) -> list[str]:
         """Extract categories from task metadata"""
         if metadata and "annotations" in metadata:
             categories = metadata["annotations"].get("tekton.dev/categories", "")
-            return [c.strip() for c in categories.split(",")] if categories else []
+            return [c.strip() for c in categories.split(",") if c.strip()]
         return []
 
-    def _add_to_versions(self, resource, file, kind, pipeline_versions, task_versions, stepaction_versions):
+    def _add_to_versions(
+        self,
+        resource: dict[str, Any],
+        file: File,
+        kind: str,
+        pipeline_versions: dict[str, dict[str, list[tuple[str, str]]]],
+        task_versions: dict[str, dict[str, Any]],
+        stepaction_versions: dict[str, list[tuple[str, str]]],
+    ) -> None:
         metadata = resource.get("metadata", {})
         name = metadata.get("name", "Unnamed Resource")
         version_label = metadata.get("labels", {}).get("app.kubernetes.io/version", "")
         version_str = version_label
         path = file.src_path.replace("\\", "/")
 
-        if kind == "task":
+        if kind == KIND_TASK:
             # Store task reference with version comparison
             current_version = self._task_paths.get(name, {}).get("version", "")
             if not current_version or self._semantic_version_key(
@@ -282,16 +345,11 @@ class PipelineVisualizer(BasePlugin):
                 self._task_paths[name] = {"version": version_label, "path": path}
 
             # Add to task versions
-            categories = (
-                metadata.get("annotations", {})
-                .get("tekton.dev/categories", "")
-                .split(",")
-            )
-            categories = [c.strip() for c in categories if c.strip()]
+            categories = self._get_task_categories(metadata)
             task_versions.setdefault(name, {"versions": [], "categories": categories})[
                 "versions"
             ].append((version_str, path))
-        elif kind == "stepaction":
+        elif kind == KIND_STEPACTION:
             # Store stepaction reference with version comparison
             current_version = self._stepaction_paths.get(name, {}).get("version", "")
             if not current_version or self._semantic_version_key(
@@ -301,42 +359,52 @@ class PipelineVisualizer(BasePlugin):
 
             # Add to stepaction versions
             stepaction_versions.setdefault(name, []).append((version_str, path))
-        elif kind == "pipeline":
+        elif kind == KIND_PIPELINE:
             # Get group path without version directories
             group = self._get_group(file.src_path, self.nav_pipeline_grouping_offset)
             # Add debug logging
-            self.logger.debug(f"Adding pipeline {name} to group {group}")
+            self.logger.debug("Adding pipeline %s to group %s", name, group)
             pipeline_versions.setdefault(group, {}).setdefault(name, []).append(
                 (version_str, path)
             )
 
-    def _semantic_version_key(self, version_str):
+    def _semantic_version_key(self, version_str: str) -> Any:
         """Convert version string to comparable tuple"""
         return semantic_version_key(version_str)
 
-    def _add_to_nav(self, nav_section, resources):
+    def _add_to_nav(
+        self, nav_section: list[dict[str, Any]], resources: dict[str, Any]
+    ) -> None:
         if not isinstance(resources, dict):
             self.logger.error("Resources must be a dictionary, got %s", type(resources))
             return
         add_to_nav(nav_section, resources)
 
-    def _update_navigation(self, nav, pipeline_versions, task_versions, stepaction_versions):
+    def _update_navigation(
+        self,
+        nav: list[dict[str, Any]],
+        pipeline_versions: dict[str, dict[str, list[tuple[str, str]]]],
+        task_versions: dict[str, dict[str, Any]],
+        stepaction_versions: dict[str, list[tuple[str, str]]],
+    ) -> None:
         self._navigation_builder().update_navigation(
             nav, pipeline_versions, task_versions, stepaction_versions
         )
 
-    def _remove_empty_sections(self, nav_list):
+    def _remove_empty_sections(self, nav_list: list[dict[str, Any]]) -> None:
         """Recursively remove empty sections from a navigation list."""
         remove_empty_sections(nav_list)
 
-    def _find_or_create_section(self, nav, section_name):
+    def _find_or_create_section(
+        self, nav: list[dict[str, Any]], section_name: str
+    ) -> list[dict[str, Any]]:
         self.logger.debug("Finding or creating navigation section: %s", section_name)
         return find_or_create_section(nav, section_name)
 
-    def _get_group(self, path, offset):
+    def _get_group(self, path: str, offset: tuple[int, int] | None) -> str:
         """Extract group from path based on offset"""
         return get_group(path, offset)
 
-    def _get_relative_path(self, from_path, to_path):
+    def _get_relative_path(self, from_path: str, to_path: str) -> str:
         """Generate relative path between two documents"""
         return get_relative_path(from_path, to_path)

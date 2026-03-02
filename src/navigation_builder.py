@@ -1,17 +1,19 @@
 from .navigation_utils import add_to_nav, find_or_create_section, remove_empty_sections
+from logging import Logger
+from typing import Any
 
 
 class NavigationBuilder:
     def __init__(
         self,
-        logger,
-        nav_section_pipelines,
-        nav_section_tasks,
-        nav_section_stepactions,
-        nav_group_tasks_by_category,
-        nav_category_mapping,
-        nav_hide_empty_sections,
-    ):
+        logger: Logger,
+        nav_section_pipelines: str,
+        nav_section_tasks: str,
+        nav_section_stepactions: str,
+        nav_group_tasks_by_category: bool,
+        nav_category_mapping: dict[str, str],
+        nav_hide_empty_sections: bool,
+    ) -> None:
         self.logger = logger
         self.nav_section_pipelines = nav_section_pipelines
         self.nav_section_tasks = nav_section_tasks
@@ -20,7 +22,13 @@ class NavigationBuilder:
         self.nav_category_mapping = nav_category_mapping
         self.nav_hide_empty_sections = nav_hide_empty_sections
 
-    def update_navigation(self, nav, pipeline_versions, task_versions, stepaction_versions):
+    def update_navigation(
+        self,
+        nav: list[dict[str, Any]],
+        pipeline_versions: dict[str, dict[str, list[tuple[str, str]]]],
+        task_versions: dict[str, dict[str, Any]],
+        stepaction_versions: dict[str, list[tuple[str, str]]],
+    ) -> None:
         self.logger.info("Updating navigation structure")
 
         pipelines_section = self.find_or_create_section(nav, self.nav_section_pipelines)
@@ -43,7 +51,9 @@ class NavigationBuilder:
                     if isinstance(current, dict):
                         current[name] = versions
 
-            def build_nav(section, structure):
+            def build_nav(
+                section: list[dict[str, Any]], structure: dict[str, Any]
+            ) -> None:
                 for key, value in sorted(structure.items()):
                     if isinstance(value, list):
                         self.add_to_nav(section, {key: value})
@@ -51,7 +61,7 @@ class NavigationBuilder:
                         subsection = self.find_or_create_section(section, key)
                         build_nav(subsection, value)
 
-            self.logger.debug(f"Final structure: {grouped_pipelines}")
+            self.logger.debug("Final structure: %s", grouped_pipelines)
             build_nav(pipelines_section, grouped_pipelines)
 
         if task_versions:
@@ -90,15 +100,15 @@ class NavigationBuilder:
         if self.nav_hide_empty_sections:
             self.remove_empty_sections(nav)
 
-    def add_to_nav(self, nav_section, resources):
+    def add_to_nav(self, nav_section: list[dict[str, Any]], resources: dict[str, Any]) -> None:
         if not isinstance(resources, dict):
             self.logger.error("Resources must be a dictionary, got %s", type(resources))
             return
         add_to_nav(nav_section, resources)
 
-    def remove_empty_sections(self, nav_list):
+    def remove_empty_sections(self, nav_list: list[dict[str, Any]]) -> None:
         remove_empty_sections(nav_list)
 
-    def find_or_create_section(self, nav, section_name):
+    def find_or_create_section(self, nav: list[dict[str, Any]], section_name: str) -> list[dict[str, Any]]:
         self.logger.debug("Finding or creating navigation section: %s", section_name)
         return find_or_create_section(nav, section_name)

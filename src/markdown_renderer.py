@@ -1,4 +1,7 @@
 import yaml
+from collections.abc import Callable, Mapping, Sequence
+from logging import Logger
+from typing import Any
 
 from .rendering_utils import (
     format_value,
@@ -14,16 +17,16 @@ from .rendering_utils import (
 class MarkdownRenderer:
     def __init__(
         self,
-        logger,
-        plantuml_graphs,
-        plantuml_graph_direction,
-        plantuml_theme,
-        include_cli_usage,
-        task_paths,
-        stepaction_paths,
-        relative_path_fn,
-        source_path,
-    ):
+        logger: Logger,
+        plantuml_graphs: bool,
+        plantuml_graph_direction: str,
+        plantuml_theme: str,
+        include_cli_usage: bool,
+        task_paths: dict[str, dict[str, str]],
+        stepaction_paths: dict[str, dict[str, str]],
+        relative_path_fn: Callable[[str, str], str],
+        source_path: str,
+    ) -> None:
         self.logger = logger
         self.plantuml_graphs = plantuml_graphs
         self.plantuml_graph_direction = plantuml_graph_direction
@@ -34,7 +37,7 @@ class MarkdownRenderer:
         self.relative_path_fn = relative_path_fn
         self.source_path = source_path
 
-    def generate_markdown_content(self, resources):
+    def generate_markdown_content(self, resources: Sequence[Mapping[str, Any]]) -> str:
         self.logger.debug("Generating Markdown content for %d resources", len(resources))
         markdown_content = ""
         for resource in resources:
@@ -60,7 +63,7 @@ class MarkdownRenderer:
             markdown_content += "\n---\n\n"
         return markdown_content
 
-    def visualize_pipeline(self, spec):
+    def visualize_pipeline(self, spec: Mapping[str, Any]) -> str:
         self.logger.debug("Visualizing pipeline")
         markdown_content = ""
         tasks = spec.get("tasks", [])
@@ -75,7 +78,7 @@ class MarkdownRenderer:
             markdown_content += self.visualize_tasks(final)
         return markdown_content
 
-    def visualize_task(self, metadata, spec):
+    def visualize_task(self, metadata: Mapping[str, Any], spec: Mapping[str, Any]) -> str:
         self.logger.debug("Visualizing task: %s", metadata.get("name", "Unnamed Task"))
         markdown_content = f"## Description\n>{spec.get('description','No description')}\n"
         markdown_content += self.visualize_parameters(spec.get("params", []))
@@ -86,7 +89,7 @@ class MarkdownRenderer:
         markdown_content += self.visualize_usage(metadata, spec)
         return markdown_content
 
-    def visualize_stepaction(self, metadata, spec):
+    def visualize_stepaction(self, metadata: Mapping[str, Any], spec: Mapping[str, Any]) -> str:
         self.logger.debug(
             "Visualizing stepaction: %s", metadata.get("name", "Unnamed StepAction")
         )
@@ -103,7 +106,9 @@ class MarkdownRenderer:
         markdown_content += self.visualize_environment(spec.get("env", []))
         return markdown_content
 
-    def make_graph_from_tasks(self, tasks, final):
+    def make_graph_from_tasks(
+        self, tasks: Sequence[Mapping[str, Any]], final: Sequence[Mapping[str, Any]]
+    ) -> str:
         self.logger.debug(
             "Generating graph from %d tasks and %d final tasks", len(tasks), len(final)
         )
@@ -143,7 +148,7 @@ class MarkdownRenderer:
         markdown_content += "@enduml\n```\n"
         return markdown_content
 
-    def visualize_step_template(self, template):
+    def visualize_step_template(self, template: Mapping[str, Any]) -> str:
         if not template:
             return ""
         markdown_content = "## Step template\n\n"
@@ -177,7 +182,7 @@ class MarkdownRenderer:
         markdown_content += "\n"
         return markdown_content
 
-    def visualize_parameters(self, params):
+    def visualize_parameters(self, params: Sequence[Mapping[str, Any]]) -> str:
         if not params:
             return "## Parameters\n\nNo parameters\n"
         markdown_content = self.table_with_header(
@@ -196,7 +201,7 @@ class MarkdownRenderer:
             )
         return markdown_content + "\n"
 
-    def visualize_workspaces(self, workspaces):
+    def visualize_workspaces(self, workspaces: Sequence[Mapping[str, Any]]) -> str:
         if not workspaces:
             return ""
         markdown_content = self.table_with_header(
@@ -209,7 +214,7 @@ class MarkdownRenderer:
             markdown_content += f"| `{name}` | {description} | {optional} |\n"
         return markdown_content + "\n"
 
-    def visualize_tasks(self, tasks):
+    def visualize_tasks(self, tasks: Sequence[Mapping[str, Any]]) -> str:
         markdown_content = "## Tasks\n\n"
         for task in tasks:
             task_name = task.get("name", "Unnamed Task")
@@ -268,7 +273,7 @@ class MarkdownRenderer:
 
         return markdown_content
 
-    def visualize_steps(self, steps):
+    def visualize_steps(self, steps: Sequence[Mapping[str, Any]]) -> str:
         markdown_content = "## Steps\n\n"
         for i, step in enumerate(steps, 1):
             step_name = step.get("name", f"Step {i}")
@@ -293,7 +298,7 @@ class MarkdownRenderer:
             markdown_content += self.visualize_environment(step.get("env", []))
         return markdown_content
 
-    def visualize_common_elements(self, spec):
+    def visualize_common_elements(self, spec: Mapping[str, Any]) -> str:
         markdown_content = ""
         timeout = spec.get("timeout")
         if timeout:
@@ -317,7 +322,7 @@ class MarkdownRenderer:
             markdown_content += f"**Retries:** `{retries}`\n\n"
         return markdown_content
 
-    def visualize_results(self, results):
+    def visualize_results(self, results: Sequence[Mapping[str, Any]]) -> str:
         if not results:
             return "\n"
         markdown_content = self.table_with_header("## Results", ["Name", "Description"])
@@ -327,7 +332,7 @@ class MarkdownRenderer:
             markdown_content += f"| `{name}` | {description} |\n"
         return markdown_content + "\n"
 
-    def visualize_environment(self, env):
+    def visualize_environment(self, env: Sequence[Mapping[str, Any]]) -> str:
         if not env:
             return ""
         markdown_content = self.table_with_header(
@@ -366,7 +371,12 @@ class MarkdownRenderer:
         markdown_content += "\n"
         return markdown_content
 
-    def visualize_usage(self, metadata, spec, kind="task"):
+    def visualize_usage(
+        self,
+        metadata: Mapping[str, Any],
+        spec: Mapping[str, Any],
+        kind: str = "task",
+    ) -> str:
         resource_name = metadata.get("name", "Unnamed")
         display_name = metadata.get("annotations", {}).get(
             "tekton.dev/displayName", resource_name
@@ -444,7 +454,9 @@ Placeholders should be replaced with the appropriate values for your specific us
         content += "\n"
         return content
 
-    def generate_cli_command(self, metadata, spec, kind="task"):
+    def generate_cli_command(
+        self, metadata: Mapping[str, Any], spec: Mapping[str, Any], kind: str = "task"
+    ) -> str:
         name = metadata.get("name", "unnamed")
         cmd = f"tkn {kind} start {name}"
 
@@ -462,22 +474,24 @@ Placeholders should be replaced with the appropriate values for your specific us
 
         return f"\n**CLI:**\n\n```bash\n{cmd}\n```\n"
 
-    def format_value(self, value):
+    def format_value(self, value: Any) -> Any:
         return format_value(value)
 
-    def table_with_header(self, header, table_headers):
+    def table_with_header(self, header: str, table_headers: Sequence[str]) -> str:
         return table_with_header(header, table_headers)
 
-    def render_script(self, script):
+    def render_script(self, script: str) -> str:
         return render_script(script)
 
-    def render_command(self, command):
+    def render_command(self, command: Sequence[str]) -> str:
         return render_command(command)
 
-    def render_args(self, args):
+    def render_args(self, args: Sequence[str]) -> str:
         return render_args(args)
 
-    def render_resource_reference(self, label, ref_name, resource_paths):
+    def render_resource_reference(
+        self, label: str, ref_name: str, resource_paths: dict[str, dict[str, str]]
+    ) -> str:
         return render_resource_reference(
             label=label,
             ref_name=ref_name,
@@ -486,5 +500,5 @@ Placeholders should be replaced with the appropriate values for your specific us
             relative_path_fn=self.relative_path_fn,
         )
 
-    def detect_script_type(self, script):
+    def detect_script_type(self, script: str) -> str:
         return get_script_type(script)

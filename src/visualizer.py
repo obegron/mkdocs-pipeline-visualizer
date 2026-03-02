@@ -6,6 +6,7 @@ from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import File, Files
 from mkdocs.config import config_options
 from .markdown_renderer import MarkdownRenderer
+from .navigation_builder import NavigationBuilder
 from .navigation_utils import (
     add_to_nav,
     find_or_create_section,
@@ -241,6 +242,17 @@ class PipelineVisualizer(BasePlugin):
             source_path=source_path,
         )
 
+    def _navigation_builder(self):
+        return NavigationBuilder(
+            logger=self.logger,
+            nav_section_pipelines=self.nav_section_pipelines,
+            nav_section_tasks=self.nav_section_tasks,
+            nav_section_stepactions=self.nav_section_stepactions,
+            nav_group_tasks_by_category=self.nav_group_tasks_by_category,
+            nav_category_mapping=self.config.get("nav_category_mapping", {}),
+            nav_hide_empty_sections=self.nav_hide_empty_sections,
+        )
+
     def _generate_markdown_content(self, resources, source_path):
         return self._renderer(source_path).generate_markdown_content(resources)
 
@@ -371,90 +383,9 @@ class PipelineVisualizer(BasePlugin):
         add_to_nav(nav_section, resources)
 
     def _update_navigation(self, nav, pipeline_versions, task_versions, stepaction_versions):
-        """Update navigation structure"""
-        self.logger.info("Updating navigation structure")
-
-        pipelines_section = self._find_or_create_section(
-            nav, self.nav_section_pipelines
+        self._navigation_builder().update_navigation(
+            nav, pipeline_versions, task_versions, stepaction_versions
         )
-        tasks_section = self._find_or_create_section(nav, self.nav_section_tasks)
-        stepactions_section = self._find_or_create_section(nav, self.nav_section_stepactions)
-
-        if pipeline_versions:
-            grouped_pipelines = {}
-
-            # First pass - build nested structure
-            for group, pipelines in pipeline_versions.items():
-                parts = [p for p in group.split("/") if p]
-                current = grouped_pipelines
-
-                # Build full path
-                for part in parts:
-                    if part not in current:
-                        current[part] = {}
-                    current = current[part]
-
-                # Add pipelines to leaf node
-                for name, versions in pipelines.items():
-                    if isinstance(current, dict):
-                        current[name] = versions
-
-            # Second pass - build navigation
-            def build_nav(section, structure):
-                for key, value in sorted(structure.items()):
-                    if isinstance(value, list):
-                        # Direct pipeline versions
-                        self._add_to_nav(section, {key: value})
-                    else:
-                        # Nested structure
-                        subsection = self._find_or_create_section(section, key)
-                        build_nav(subsection, value)
-
-            self.logger.debug(f"Final structure: {grouped_pipelines}")
-            build_nav(pipelines_section, grouped_pipelines)
-
-        # Handle task versions
-        if task_versions:
-            if self.nav_group_tasks_by_category:
-                categories = {}
-                uncategorized = {}
-
-                for task_name, task_info in task_versions.items():
-                    versions = task_info["versions"]
-                    task_categories = task_info.get("categories", [])
-
-                    if not task_categories:
-                        uncategorized[task_name] = versions
-                    else:
-                        for category in task_categories:
-                            # Map category name if configured
-                            mapped_category = self.config["nav_category_mapping"].get(
-                                category, category
-                            )
-                            categories.setdefault(mapped_category, {})[
-                                task_name
-                            ] = versions
-
-                if uncategorized:
-                    self._add_to_nav(tasks_section, uncategorized)
-
-                for category in sorted(categories.keys()):
-                    category_section = self._find_or_create_section(
-                        tasks_section, category
-                    )
-                    self._add_to_nav(category_section, categories[category])
-            else:
-                simplified_versions = {
-                    name: info["versions"] for name, info in task_versions.items()
-                }
-                self._add_to_nav(tasks_section, simplified_versions)
-
-        # Handle stepaction versions
-        if stepaction_versions:
-            self._add_to_nav(stepactions_section, stepaction_versions)
-
-        if self.nav_hide_empty_sections:
-            self._remove_empty_sections(nav)
 
     def _remove_empty_sections(self, nav_list):
         """Recursively remove empty sections from a navigation list."""
@@ -463,23 +394,6 @@ class PipelineVisualizer(BasePlugin):
     def _find_or_create_section(self, nav, section_name):
         self.logger.debug("Finding or creating navigation section: %s", section_name)
         return find_or_create_section(nav, section_name)
-
-    def _find_or_create_nested_dict(self, current_level, path_parts):
-        self.logger.debug(
-            "Finding or creating nested dict for path: %s", "/".join(path_parts)
-        )
-        for part in path_parts:
-            found = False
-            for item in current_level:
-                if isinstance(item, dict) and part in item:
-                    current_level = item[part]
-                    found = True
-                    break
-            if not found:
-                new_dict = {part: []}
-                current_level.append(new_dict)
-                current_level = new_dict[part]
-        return current_level
 
     def _get_group(self, path, offset):
         """Extract group from path based on offset"""

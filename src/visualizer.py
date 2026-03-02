@@ -256,70 +256,8 @@ class PipelineVisualizer(BasePlugin):
     def _generate_markdown_content(self, resources, source_path):
         return self._renderer(source_path).generate_markdown_content(resources)
 
-    def _visualize_pipeline(self, spec, source_path):
-        return self._renderer(source_path).visualize_pipeline(spec)
-
-    def _visualize_task(self, metadata, spec, source_path):
-        return self._renderer(source_path).visualize_task(metadata, spec)
-
-    def _visualize_stepaction(self, metadata, spec):
-        return self._renderer("").visualize_stepaction(metadata, spec)
-
-    def _make_graph_from_tasks(self, tasks, final):
-        return self._renderer("").make_graph_from_tasks(tasks, final)
-
-    def _visualize_step_template(self, template):
-        return self._renderer("").visualize_step_template(template)
-
-    def _visualize_parameters(self, params):
-        return self._renderer("").visualize_parameters(params)
-
-    def _visualize_workspaces(self, workspaces):
-        return self._renderer("").visualize_workspaces(workspaces)
-
-    def _visualize_tasks(self, tasks, source_path):
-        return self._renderer(source_path).visualize_tasks(tasks)
-
-    def _visualize_steps(self, steps, source_path):
-        return self._renderer(source_path).visualize_steps(steps)
-
-    def _visualize_common_elements(self, spec):
-        return self._renderer("").visualize_common_elements(spec)
-
-    def _visualize_results(self, results):
-        return self._renderer("").visualize_results(results)
-
-    def _visualize_environment(self, env):
-        return self._renderer("").visualize_environment(env)
-
-    def _visualize_usage(self, metadata, spec, kind="task"):
-        return self._renderer("").visualize_usage(metadata, spec, kind)
-
     def _generate_cli_command(self, metadata, spec, kind="task"):
         return self._renderer("").generate_cli_command(metadata, spec, kind)
-
-    def _format_value(self, value):
-        return self._renderer("").format_value(value)
-
-    def _table_with_header(self, header, table_headers):
-        return self._renderer("").table_with_header(header, table_headers)
-
-    def _render_script(self, script):
-        return self._renderer("").render_script(script)
-
-    def _render_command(self, command):
-        return self._renderer("").render_command(command)
-
-    def _render_args(self, args):
-        return self._renderer("").render_args(args)
-
-    def _render_resource_reference(self, label, ref_name, resource_paths, source_path):
-        return self._renderer(source_path).render_resource_reference(
-            label=label, ref_name=ref_name, resource_paths=resource_paths
-        )
-
-    def _get_script_type(self, script):
-        return self._renderer("").detect_script_type(script)
 
     def _get_task_categories(self, metadata):
         """Extract categories from task metadata"""

@@ -1,7 +1,7 @@
 import logging
 
-from .markdown_renderer import MarkdownRenderer
-from .navigation_utils import get_relative_path
+from mkdocs_pipeline_visualizer.markdown_renderer import MarkdownRenderer
+from mkdocs_pipeline_visualizer.navigation_utils import get_relative_path
 
 
 def _renderer(source_path="pipelines/example.md", include_cli_usage=True):

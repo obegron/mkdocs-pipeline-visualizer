@@ -1,6 +1,8 @@
-import pytest
-from .visualizer import PipelineVisualizer
 import logging
+
+import pytest
+
+from mkdocs_pipeline_visualizer.visualizer import PipelineVisualizer
 
 @pytest.fixture
 def plugin():

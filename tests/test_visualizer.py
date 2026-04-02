@@ -1,8 +1,10 @@
+import logging
+import os
+
 import pytest
 from mkdocs.structure.files import File, Files
-from .visualizer import PipelineVisualizer
-import os
-import logging
+
+from mkdocs_pipeline_visualizer.visualizer import PipelineVisualizer
 
 
 @pytest.fixture

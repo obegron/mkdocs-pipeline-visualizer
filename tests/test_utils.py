@@ -1,5 +1,14 @@
-from .navigation_utils import get_group, get_relative_path, semantic_version_key
-from .rendering_utils import get_script_type, render_args, render_command, render_script
+from mkdocs_pipeline_visualizer.navigation_utils import (
+    get_group,
+    get_relative_path,
+    semantic_version_key,
+)
+from mkdocs_pipeline_visualizer.rendering_utils import (
+    get_script_type,
+    render_args,
+    render_command,
+    render_script,
+)
 
 
 def test_semantic_version_key_handles_invalid_values():

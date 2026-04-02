@@ -1,6 +1,6 @@
 import logging
 
-from .navigation_builder import NavigationBuilder
+from mkdocs_pipeline_visualizer.navigation_builder import NavigationBuilder
 
 
 def _builder(**overrides):

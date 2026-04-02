@@ -14,6 +14,20 @@ To install the mkdocs-pipeline-visualizer plugin, run the following command:
 $ pip install mkdocs-pipeline-visualizer
 ```
 
+For local development with `uv`:
+
+```console
+$ uv sync --dev
+$ uv run test
+$ uv run serve-example
+```
+
+If you already had an older local environment from before the package layout change, resync the project so the installed plugin entry point is refreshed:
+
+```console
+$ uv sync --dev --reinstall-package mkdocs-pipeline-visualizer
+```
+
 ### Example Configuration
 
 Below is an example of how to configure mkdocs.yaml:
@@ -26,16 +40,12 @@ nav:
   - Home: index.md
 
 plugins:
+  - techdocs-core
   - pipeline-visualizer
 
 markdown_extensions:
   plantuml_markdown:
     server: http://www.plantuml.com/plantuml
-
-theme:
-  name: material
-  features:
-    - navigation.sections
 ```
 
 ## Configuration
@@ -245,4 +255,3 @@ plugins:
 
 #### Fixed
 * Issue with multidoc YAML.
-

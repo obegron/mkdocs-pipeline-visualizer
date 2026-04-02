@@ -1,6 +1,6 @@
 # MkDocs Pipeline Visualizer Example
 
-This example demonstrates how to use the MkDocs Pipeline Visualizer plugin together with Spotify TechDocs to generate documentation for Tekton pipelines and tasks.
+This example demonstrates how to use the MkDocs Pipeline Visualizer plugin with the `mkdocs-materialx` theme to generate documentation for Tekton pipelines and tasks.
 
 ## Getting Started
 

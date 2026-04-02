@@ -40,12 +40,14 @@ nav:
   - Home: index.md
 
 plugins:
-  - techdocs-core
   - pipeline-visualizer
 
 markdown_extensions:
   plantuml_markdown:
     server: http://www.plantuml.com/plantuml
+
+theme:
+  name: materialx
 ```
 
 ## Configuration

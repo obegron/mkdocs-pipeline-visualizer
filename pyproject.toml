@@ -46,7 +46,7 @@ test = "mkdocs_pipeline_visualizer.dev:run_tests"
 [dependency-groups]
 dev = [
   "build",
-  "mkdocs-techdocs-core",
+  "mkdocs-materialx",
   "plantuml-markdown",
   "pymdown-extensions",
   "pytest",

@@ -1,10 +1,19 @@
-apiVersion: tekton.dev/v1beta1
+apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
   labels:
     app.kubernetes.io/version: "0.2"
   name: example-pipeline
 spec:
+  displayName: Build, test, and publish
+  description: |
+    Fetch the source, run lint checks, and then build and test in parallel.
+    Publish only after both checks complete. Final tasks handle cleanup and
+    notification after the main tasks settle, even when a task fails.
+  results:
+    - name: build-summary
+      description: Summary produced by the publishing task.
+      value: $(tasks.build-push-image.results.MY_RESULT)
   params:
     - name: parameter1
       description: source repo 1
@@ -15,7 +24,7 @@ spec:
       taskRef:
         name: example-tasks
       workspaces:
-        - name: output
+        - name: source
           workspace: shared-workspace
       params:
         - name: parameter1
@@ -58,5 +67,11 @@ spec:
       taskRef:
         name: example-tasks
       workspaces:
-        - name: output
+        - name: source
+          workspace: shared-workspace
+    - name: notify
+      taskRef:
+        name: example-tasks
+      workspaces:
+        - name: source
           workspace: shared-workspace

@@ -1,0 +1,49 @@
+/* Scoped to generated resource pages; inherit the site's light/dark theme. */
+.tekton-documentation {
+  min-width: 0;
+  line-height: 1.65;
+}
+.tekton-documentation h2 {
+  margin-top: 2.5rem;
+  padding-bottom: .4rem;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest, #8884);
+}
+.tekton-documentation h3 { margin-top: 2rem; }
+.tekton-documentation table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 1rem 0 1.75rem;
+  border-collapse: collapse;
+}
+.tekton-documentation th,
+.tekton-documentation td {
+  padding: .75rem 1rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest, #8884);
+}
+.tekton-documentation th { white-space: nowrap; }
+.tekton-documentation td code { overflow-wrap: anywhere; }
+.tekton-documentation a { text-underline-offset: .2em; }
+.tekton-documentation a[id] { scroll-margin-top: 5rem; }
+.tekton-documentation details {
+  margin: 2rem 0;
+  border: 1px solid var(--md-default-fg-color--lightest, #8884);
+  border-radius: .4rem;
+}
+.tekton-documentation summary {
+  padding: .8rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+.tekton-documentation details pre { margin: 0; padding: 1rem; overflow: auto; }
+.tekton-documentation details > p { margin: .75rem 1rem; }
+.tekton-documentation summary:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+@media (max-width: 600px) {
+  .tekton-documentation th,
+  .tekton-documentation td { padding: .5rem .65rem; }
+}

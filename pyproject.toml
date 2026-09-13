@@ -60,3 +60,6 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.setuptools.package-data]
+mkdocs_pipeline_visualizer = ["assets/*.css"]

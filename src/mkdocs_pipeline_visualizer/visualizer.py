@@ -1,11 +1,14 @@
-import os
-import yaml
 import logging
-import hashlib
+from copy import deepcopy
+from importlib.resources import files as package_files
+from pathlib import PurePosixPath
 from typing import Any
+
+import yaml
+from mkdocs.config import config_options
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import File, Files
-from mkdocs.config import config_options
+
 from .markdown_renderer import MarkdownRenderer
 from .navigation_builder import NavigationBuilder
 from .navigation_utils import (
@@ -16,6 +19,7 @@ from .navigation_utils import (
     remove_empty_sections,
     semantic_version_key,
 )
+from .rendering_utils import resource_anchor
 
 KIND_PIPELINE = "pipeline"
 KIND_TASK = "task"
@@ -23,7 +27,6 @@ KIND_STEPACTION = "stepaction"
 
 
 class PipelineVisualizer(BasePlugin):
-
     config_scheme = (
         ("plantuml_graph_direction", config_options.Choice(["TB", "LR"], default="TB")),
         ("plantuml_theme", config_options.Type(str, default="_none_")),
@@ -38,6 +41,7 @@ class PipelineVisualizer(BasePlugin):
         ("nav_stepaction_grouping_offset", config_options.Type(str, default=None)),
         ("nav_group_tasks_by_category", config_options.Type(bool, default=False)),
         ("nav_category_mapping", config_options.Type(dict, default={})),
+        ("include_usage", config_options.Type(bool, default=True)),
         ("include_cli_usage", config_options.Type(bool, default=True)),
         (
             "log_level",
@@ -49,10 +53,16 @@ class PipelineVisualizer(BasePlugin):
 
     def __init__(self) -> None:
         self.logger = logging.getLogger("mkdocs.plugins.pipeline_visualizer")
+        self._nav_config = None
+        self._original_nav = None
         self._task_paths: dict[str, dict[str, str]] = {}
         self._stepaction_paths: dict[str, dict[str, str]] = {}
 
     def on_config(self, config: dict[str, Any]) -> None:
+        stylesheet = "assets/pipeline-visualizer.css"
+        extra_css = config.setdefault("extra_css", [])
+        if stylesheet not in extra_css:
+            extra_css.append(stylesheet)
         self.nav_task_grouping_offset = self._parse_grouping_offset(
             self.config["nav_task_grouping_offset"]
         )
@@ -86,6 +96,7 @@ class PipelineVisualizer(BasePlugin):
         self.nav_pipeline_grouping_offset = self._parse_grouping_offset(
             self.config["nav_pipeline_grouping_offset"]
         )
+        self.include_usage = self.config["include_usage"]
         self.include_cli_usage = self.config["include_cli_usage"]
         self.logger.info(
             "PipelineVisualizer plugin initialized with configuration: %s", self.config
@@ -121,49 +132,85 @@ class PipelineVisualizer(BasePlugin):
         task_versions: dict[str, dict[str, Any]] = {}
         stepaction_versions: dict[str, list[tuple[str, str]]] = {}
         new_files: list[File] = []
-        yaml_files = [file for file in files if file.src_path.endswith(".yaml")]
+        yaml_files = [
+            file for file in files if file.src_path.endswith((".yaml", ".yml"))
+        ]
         resources_by_path = self._collect_yaml_resources(yaml_files)
 
-        # Process tasks and stepactions first to build task reference map
+        # Index every resource before rendering any page. This also makes rebuilds
+        # independent of file order and removes references to deleted resources.
+        self._task_paths.clear()
+        self._stepaction_paths.clear()
         for file in yaml_files:
-            resources = resources_by_path.get(file.src_path)
-            if not resources:
-                continue
-            kinds = self._resource_kinds(resources)
-            if KIND_TASK in kinds or KIND_STEPACTION in kinds:
-                new_file = self._process_yaml_file(
-                    file,
-                    config,
+            page = File(
+                str(PurePosixPath(file.src_path).with_suffix(".md")),
+                file.src_dir,
+                config["site_dir"],
+                config.get("use_directory_urls", True),
+            )
+            for resource in resources_by_path.get(file.src_path, []):
+                self._add_to_versions(
+                    resource,
+                    page,
+                    resource["kind"].lower(),
                     pipeline_versions,
                     task_versions,
                     stepaction_versions,
-                    resources,
                 )
-                if new_file:
-                    new_files.append(new_file)
-
-        # Then process pipelines with complete task reference map
         for file in yaml_files:
-            resources = resources_by_path.get(file.src_path)
-            if not resources:
-                continue
-            kinds = self._resource_kinds(resources)
-            if KIND_PIPELINE in kinds:
-                new_file = self._process_yaml_file(
-                    file,
-                    config,
-                    pipeline_versions,
-                    task_versions,
-                    stepaction_versions,
-                    resources,
-                )
-                if new_file:
-                    new_files.append(new_file)
+            resources = resources_by_path.get(file.src_path, [])
+            if resources:
+                content = self._generate_markdown_content(resources, file.src_path)
+                new_files.append(self._create_markdown_file(file, config, content))
 
         if self.nav_generation:
-            self._update_navigation(config["nav"], pipeline_versions, task_versions, stepaction_versions)
+            if self._nav_config is not config:
+                self._nav_config = config
+                self._original_nav = deepcopy(config.get("nav"))
+            config["nav"] = deepcopy(self._original_nav)
+            config["nav"] = config.get("nav") or [
+                {"Home" if f.src_path == "index.md" else f.name: f.src_path}
+                for f in files
+                if f.is_documentation_page()
+            ]
+            self._update_navigation(
+                config["nav"], pipeline_versions, task_versions, stepaction_versions
+            )
 
-        return Files(list(files) + [f for f in new_files if f is not None])
+        generated_paths = {f.src_path for f in new_files}
+        collisions = generated_paths & {f.src_path for f in files if not f.generated_by}
+        if collisions:
+            from mkdocs.exceptions import PluginError
+
+            raise PluginError(
+                "Generated documentation conflicts with existing Markdown: "
+                + ", ".join(sorted(collisions))
+                + ". Move or rename these Markdown files before building."
+            )
+        stylesheet = File(
+            "assets/pipeline-visualizer.css", None, config["site_dir"], False
+        )
+        stylesheet.content_string = (
+            package_files("mkdocs_pipeline_visualizer")
+            .joinpath("assets/documentation.css")
+            .read_text(encoding="utf-8")
+        )
+        stylesheet.generated_by = "pipeline-visualizer"
+        return Files(
+            [
+                f
+                for f in files
+                if f.src_path not in generated_paths
+                and f.src_path != stylesheet.src_path
+            ]
+            + new_files
+            + [stylesheet]
+        )
+
+    def on_page_content(self, html: str, page, config, files) -> str:
+        if page.file.generated_by == "pipeline-visualizer":
+            return '<div class="tekton-documentation">' + html + "</div>"
+        return html
 
     def _collect_yaml_resources(
         self, yaml_files: list[File]
@@ -172,15 +219,16 @@ class PipelineVisualizer(BasePlugin):
         for file in yaml_files:
             resources = self._load_yaml(file.abs_src_path)
             if resources:
-                resources_by_path[file.src_path] = resources
+                resources_by_path[file.src_path] = [
+                    r
+                    for r in resources
+                    if str(r.get("kind", "")).lower()
+                    in {KIND_TASK, KIND_PIPELINE, KIND_STEPACTION}
+                    and str(r.get("apiVersion", "tekton.dev/")).startswith(
+                        "tekton.dev/"
+                    )
+                ]
         return resources_by_path
-
-    def _resource_kinds(self, resources: list[dict[str, Any]]) -> set[str]:
-        return {
-            resource.get("kind", "").lower()
-            for resource in resources
-            if isinstance(resource, dict)
-        }
 
     def _process_yaml_file(
         self,
@@ -192,7 +240,9 @@ class PipelineVisualizer(BasePlugin):
         resources: list[dict[str, Any]] | None = None,
     ) -> File | None:
         """Process YAML file containing one or more resources"""
-        resources = resources if resources is not None else self._load_yaml(file.abs_src_path)
+        resources = (
+            resources if resources is not None else self._load_yaml(file.abs_src_path)
+        )
         if not resources:
             self.logger.warning("Failed to load YAML file: %s", file.abs_src_path)
             return None
@@ -208,7 +258,12 @@ class PipelineVisualizer(BasePlugin):
                 kind = resource.get("kind", "").lower()
                 if kind in [KIND_PIPELINE, KIND_TASK, KIND_STEPACTION]:
                     self._add_to_versions(
-                        resource, new_file, kind, pipeline_versions, task_versions, stepaction_versions
+                        resource,
+                        new_file,
+                        kind,
+                        pipeline_versions,
+                        task_versions,
+                        stepaction_versions,
                     )
 
         return new_file
@@ -238,40 +293,16 @@ class PipelineVisualizer(BasePlugin):
         suffix: str = "",
     ) -> File:
         """Create markdown file with optional suffix for multi-doc files"""
-        base_path = original_file.abs_src_path.replace(".yaml", f"{suffix}.md")
-        os.makedirs(os.path.dirname(base_path), exist_ok=True)
-
-        new_content_hash = hashlib.md5(content.encode("utf-8")).hexdigest()
-
-        # Check if file exists and content is the same
-        if os.path.exists(base_path):
-            with open(base_path, "r", encoding="utf-8") as f:
-                existing_content = f.read()
-                existing_content_hash = hashlib.md5(
-                    existing_content.encode("utf-8")
-                ).hexdigest()
-                if new_content_hash == existing_content_hash:
-                    self.logger.debug(
-                        "Skipping write for %s: content unchanged", base_path
-                    )
-                    # Even if content is unchanged, return the File object so it's included in navigation
-                    return File(
-                        original_file.src_path.replace(".yaml", f"{suffix}.md"),
-                        original_file.src_dir,
-                        original_file.dest_dir,
-                        config["site_dir"],
-                    )
-
-        with open(base_path, "w", encoding="utf-8") as f:
-            f.write(content)
-
-        self.logger.debug("Created Markdown file: %s", base_path)
-        return File(
-            original_file.src_path.replace(".yaml", f"{suffix}.md"),
-            original_file.src_dir,
-            original_file.dest_dir,
+        path = PurePosixPath(original_file.src_path)
+        page = File(
+            str(path.with_name(path.stem + suffix + ".md")),
+            None,
             config["site_dir"],
+            config.get("use_directory_urls", True),
         )
+        page.content_string = content
+        page.generated_by = "pipeline-visualizer"
+        return page
 
     def _renderer(self, source_path: str) -> MarkdownRenderer:
         return MarkdownRenderer(
@@ -281,6 +312,7 @@ class PipelineVisualizer(BasePlugin):
                 self, "plantuml_graph_direction", "top to bottom direction"
             ),
             plantuml_theme=getattr(self, "plantuml_theme", "_none_"),
+            include_usage=getattr(self, "include_usage", True),
             include_cli_usage=getattr(self, "include_cli_usage", True),
             task_paths=self._task_paths,
             stepaction_paths=self._stepaction_paths,
@@ -332,7 +364,9 @@ class PipelineVisualizer(BasePlugin):
     ) -> None:
         metadata = resource.get("metadata", {})
         name = metadata.get("name", "Unnamed Resource")
-        version_label = metadata.get("labels", {}).get("app.kubernetes.io/version", "")
+        version_label = str(
+            metadata.get("labels", {}).get("app.kubernetes.io/version", "")
+        )
         version_str = version_label
         path = file.src_path.replace("\\", "/")
 
@@ -342,7 +376,10 @@ class PipelineVisualizer(BasePlugin):
             if not current_version or self._semantic_version_key(
                 version_label
             ) > self._semantic_version_key(current_version):
-                self._task_paths[name] = {"version": version_label, "path": path}
+                self._task_paths[name] = {
+                    "version": version_label,
+                    "path": path + "#" + resource_anchor(resource),
+                }
 
             # Add to task versions
             categories = self._get_task_categories(metadata)
@@ -355,7 +392,10 @@ class PipelineVisualizer(BasePlugin):
             if not current_version or self._semantic_version_key(
                 version_label
             ) > self._semantic_version_key(current_version):
-                self._stepaction_paths[name] = {"version": version_label, "path": path}
+                self._stepaction_paths[name] = {
+                    "version": version_label,
+                    "path": path + "#" + resource_anchor(resource),
+                }
 
             # Add to stepaction versions
             stepaction_versions.setdefault(name, []).append((version_str, path))

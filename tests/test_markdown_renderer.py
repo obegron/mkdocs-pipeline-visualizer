@@ -45,9 +45,9 @@ def test_generate_cli_command_skips_defaults_and_optional_workspaces():
     cmd = renderer.generate_cli_command(metadata, spec, kind="task")
 
     assert "tkn task start task-demo" in cmd
-    assert "-p required=<REQUIRED>" in cmd
+    assert "-p 'required=<REQUIRED>'" in cmd
     assert "with-default" not in cmd
-    assert "-w source=<SOURCE>" in cmd
+    assert "-w 'name=source,claimName=<PVC_NAME>'" in cmd
     assert "-w cache" not in cmd
 
 

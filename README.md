@@ -6,6 +6,45 @@
 
 ![Visualization of a Tekton pipeline using mkdocs-pipeline-visualizer plugin](https://raw.githubusercontent.com/obegron/mkdocs-pipeline-visualizer/main/example/tekton/pipeline-view.png)
 
+## Reading the generated documentation
+
+Pipeline pages lead with the description and an execution overview. A linked
+summary table makes the flow readable even when PlantUML is disabled. The graph
+includes both `runAfter` and dependencies introduced by task-result references;
+final tasks appear in a separate parallel phase.
+
+Task pages introduce an ordered step overview before parameters, workspaces, and
+results, with step implementation details further down. StepAction pages separate
+the execution overview from implementation details.
+Parameter tables distinguish required inputs from defaults, including empty
+strings, arrays, objects, zero, and false. Result tables show types and output
+expressions. Remote task resolvers and inline task definitions remain visible.
+Parameter and workspace bindings show which values a pipeline supplies to each task.
+Result expressions describe the definition, not observed output from a run.
+Every page ends with a collapsed resource definition for inspecting the YAML inline.
+
+Invocation examples are available in a collapsed **Example invocation** section
+near the bottom of Pipeline and Task pages, useful when authoring new pipelines.
+Set `include_usage: false` to omit them entirely, or `include_cli_usage: false`
+to keep only the YAML example.
+
+Generated pages inherit your theme, with scoped table and disclosure styling.
+Enable MkDocs' `search` plugin alongside `pipeline-visualizer` to search resources
+and their interfaces. The example site includes search, light/dark mode, and code
+copy buttons.
+
+### Build behavior
+
+Both `.yaml` and `.yml` files are supported, including multiple YAML documents.
+Resources are indexed before pages are rendered so cross-links do not depend on
+file order. References to local tasks select the highest documented version;
+remote resolver references are displayed without assuming a local match.
+
+Markdown pages are generated in memory. Source manifests are never modified.
+If an older version left generated `.md` files beside your manifests, move or
+remove those generated files before building. A matching handwritten Markdown
+file causes an explicit conflict error instead of being overwritten.
+
 ## Installation
 
 To install the mkdocs-pipeline-visualizer plugin, run the following command:
@@ -40,6 +79,7 @@ nav:
   - Home: index.md
 
 plugins:
+  - search
   - pipeline-visualizer
 
 markdown_extensions:
@@ -52,10 +92,12 @@ theme:
 
 ## Configuration
 
-By default, the plugin creates two sections at the root level: Pipelines and Tasks. The docs_dir should point to the location of pipelines and tasks manifests.
+By default, the plugin creates three sections at the root level: Pipelines, Tasks, and StepActions. The docs_dir should point to the location of pipelines and tasks manifests.
 
 | Config parameter | Type | Description | Default | Since |
 | ---------------- | ---- | ----------- | ------- | -------------- |
+| `include_usage` | **[bool]** | Show collapsed invocation examples for pipelines and tasks | `True` | Unreleased |
+| `include_cli_usage` | **[bool]** | Include CLI commands when `include_usage` is enabled | `True` | Unreleased |
 | `plantuml_graphs`| **[bool]** | Controls if pipeline graph should be visible | `True` | 0.1.5 |
 | `plantuml_graph_direction` | **[string]** | TB(top to bottom) or LR(left to right) | `TB` | 0.1.3 |
 | `plantuml_theme` | **[string]** | Any theme listed on https://plantuml.com/theme to style e.g hacker, spacelab | `_none_` | 0.1.3 |

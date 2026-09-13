@@ -93,7 +93,7 @@ spec:
     assert new_file is not None
     assert new_file.src_path.endswith(".md")
 
-    md_content = (tmp_path / new_file.src_path).read_text()
+    md_content = new_file.content_string
     assert "# Pipeline: test-pipeline v0.1" in md_content
     assert "## Tasks" in md_content
     assert "### task1" in md_content
@@ -129,7 +129,7 @@ spec:
     new_files = plugin.on_files(Files([mock_file]), mock_config)
     md_files = [f for f in new_files if f.src_path.endswith(".md")]
     assert len(md_files) == 1
-    md_content = (tmp_path / md_files[0].src_path).read_text()
+    md_content = md_files[0].content_string
 
     assert "# Pipeline: pipeline1" in md_content
     assert "# Pipeline: pipeline2" in md_content
@@ -216,7 +216,7 @@ def test_nav_structure_generation(plugin, mock_config):
     assert "StepActions" in mock_nav[2]
 
 
-def test_add_to_versions_no_version(plugin):
+def test_add_to_versions_no_version(plugin, mock_config):
     plugin.load_config({"log_level": "DEBUG"})
     plugin.on_config(mock_config)
     resource = {"metadata": {"name": "no-version-pipeline"}}
@@ -234,7 +234,7 @@ def test_add_to_versions_no_version(plugin):
     assert pipeline_versions[""]["no-version-pipeline"][0][0] == ""
 
 
-def test_add_to_versions(plugin):
+def test_add_to_versions(plugin, mock_config):
     plugin.load_config({"log_level": "DEBUG"})
     plugin.on_config(mock_config)
     resource = {
@@ -276,7 +276,7 @@ def test_add_to_versions_with_grouping_offset(plugin):
     assert "grouped-pipeline" in pipeline_versions["group1/group2"]
 
 
-def test_add_to_versions_multiple_versions(plugin):
+def test_add_to_versions_multiple_versions(plugin, mock_config):
     plugin.load_config({"log_level": "DEBUG"})
     plugin.on_config(mock_config)
     resource1 = {
@@ -365,7 +365,9 @@ def test_add_to_versions_with_category(plugin, mock_config):
     task_versions = {}
     new_file = File("test-task.md", "", "", "")
 
-    plugin._add_to_versions(task, new_file, "task", pipeline_versions, task_versions, {})
+    plugin._add_to_versions(
+        task, new_file, "task", pipeline_versions, task_versions, {}
+    )
 
     assert "test-task" in task_versions
     assert task_versions["test-task"]["categories"] == ["Testing"]

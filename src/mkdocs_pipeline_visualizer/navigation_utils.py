@@ -1,6 +1,7 @@
 import os
-from packaging import version
 from typing import Any
+
+from packaging import version
 
 VersionPath = tuple[str, str]
 VersionList = list[VersionPath]
@@ -25,20 +26,24 @@ def add_to_nav(nav_section: NavList, resources: ResourceVersions) -> None:
         )
 
         if len(sorted_versions) == 1:
-            nav_section.append({resource_name: sorted_versions[0][1]})
+            item = {resource_name: sorted_versions[0][1]}
+            if item not in nav_section:
+                nav_section.append(item)
         else:
             version_dict = {}
             for ver, path in sorted_versions:
                 version_name = f"{resource_name} v{ver}" if ver else resource_name
                 version_dict[version_name] = path
-            nav_section.append({resource_name: version_dict})
+            item = {resource_name: version_dict}
+            if item not in nav_section:
+                nav_section.append(item)
 
 
 def remove_empty_sections(nav_list: NavList) -> None:
     items_to_remove = []
     for item in nav_list:
         if isinstance(item, dict):
-            for _, value in item.items():
+            for value in item.values():
                 if isinstance(value, list):
                     remove_empty_sections(value)
                     if not value:
@@ -57,7 +62,7 @@ def find_or_create_section(nav: NavList, section_name: str) -> NavList:
                     return result
         elif isinstance(nav_item, dict):
             for key, value in nav_item.items():
-                if key == section_name and isinstance(value, list) and not value:
+                if key == section_name and isinstance(value, list):
                     return value
                 result = find_section_recursive(value, section_name)
                 if result is not None:
@@ -98,6 +103,7 @@ def get_group(path: str, offset: tuple[int, int] | None) -> str:
 
 def get_relative_path(from_path: str, to_path: str) -> str:
     from_path = from_path.replace("\\", "/").rstrip("/")
+    to_path, separator, fragment = to_path.partition("#")
     to_path = to_path.replace("\\", "/").rstrip("/")
 
     from_parts = from_path.split("/")
@@ -119,4 +125,4 @@ def get_relative_path(from_path: str, to_path: str) -> str:
     if not relative_path.endswith(".md"):
         relative_path += ".md"
 
-    return relative_path
+    return relative_path + (separator + fragment if separator else "")

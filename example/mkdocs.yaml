@@ -1,5 +1,5 @@
-site_name: Example
-site_description: Tekton
+site_name: Tekton catalog
+site_description: Explore pipeline execution, task interfaces, and reusable steps.
 docs_dir: ./tekton
 
 nav:
@@ -10,8 +10,10 @@ nav:
     - "⚙️ StepActions": []
 
 plugins:
+  - search
   - pipeline-visualizer:
-      plantuml_theme: hacker
+      plantuml_theme: _none_
+      nav_hide_empty_sections: true
       nav_section_tasks: "🛠️ Tasks"
       nav_section_pipelines: "🚀 Pipelines"
       nav_section_stepactions: "⚙️ StepActions"
@@ -31,8 +33,23 @@ markdown_extensions:
   - pymdownx.tabbed:
       alternate_style: true
   - plantuml_markdown:
-      server: http://www.plantuml.com/plantuml
+      server: https://www.plantuml.com/plantuml
       format: svg
 
 theme:
   name: materialx
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
